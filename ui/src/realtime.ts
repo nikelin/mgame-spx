@@ -52,7 +52,7 @@ function subscribeSse(
     es.onmessage = (e) => handle(e);
     // Custom event types we publish (join, start, clue, message, accuse, win, story, leave)
     for (const k of [
-      "join", "start", "clue", "message", "accuse", "win", "story", "leave",
+      "join", "start", "clue", "clue_found", "message", "accuse", "win", "story", "leave",
       "suspect_image", "narration_chunk", "narration_end",
     ]) {
       es.addEventListener(k, (e) => handle(e as MessageEvent));

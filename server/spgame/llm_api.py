@@ -260,12 +260,21 @@ async def llm_say(request: Request, body: dict) -> Response:
                 {"clues": revealed, "points_awarded": clue_points},
                 private_to=player.id,
             )
+            public_summaries = [
+                {
+                    "clue_id": c["id"],
+                    "image_url": c.get("image_url"),
+                    "image_title": c.get("image_title"),
+                    "scene_id": c.get("scene_id"),
+                }
+                for c in revealed
+            ]
             ev.append_and_publish(
-                room, broadcaster, "message",
+                room, broadcaster, "clue_found",
                 {
                     "player_id": player.id, "name": player.name,
-                    "text": f"{player.name} uncovered {len(revealed)} clue(s) (+{clue_points} pts).",
-                    "role": "system",
+                    "clues": public_summaries,
+                    "points_awarded": clue_points,
                     "leaderboard": scoring.leaderboard(room),
                 },
             )

@@ -26,6 +26,8 @@ def award_clue_points(room: GameRoom, player: Player, clue_ids: list[str]) -> tu
             "text": clue.text,
             "points": clue.points,
             "scene_id": clue.scene_id,
+            "image_url": clue.image_url,
+            "image_title": clue.image_title,
         })
     return awarded, revealed
 

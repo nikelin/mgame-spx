@@ -38,6 +38,12 @@ class Clue(BaseModel):
         default=None, description="ID of the suspect this clue most incriminates, or null"
     )
     scene_id: str = Field(description="ID of the scene where this clue can be found")
+    image_url: str | None = Field(
+        default=None, description="Relative path to a clue image (e.g. /clue_images/glove_bloodied.jpg)."
+    )
+    image_title: str | None = Field(
+        default=None, description="Brief public-facing label of the matched image (e.g. 'Bloodied Glove')."
+    )
 
 
 class Mystery(BaseModel):
@@ -76,7 +82,7 @@ class Event(BaseModel):
     seq: int
     ts: float
     kind: Literal[
-        "join", "start", "clue", "message", "accuse", "win", "story", "leave",
+        "join", "start", "clue", "clue_found", "message", "accuse", "win", "story", "leave",
         "suspect_image", "narration_chunk", "narration_end",
     ]
     payload: dict

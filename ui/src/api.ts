@@ -58,7 +58,19 @@ export interface Suspect {
 }
 export interface Scene { id: string; name: string; description: string; }
 export interface ClueMeta { id: string; scene_id: string; points: number; }
-export interface Clue { id: string; text: string; points: number; scene_id: string; }
+export interface Clue {
+  id: string; text: string; points: number; scene_id: string;
+  image_url?: string | null;
+  image_title?: string | null;
+}
+
+// Public summary visible to all players (clue text is omitted)
+export interface ClueSummary {
+  clue_id: string;
+  image_url?: string | null;
+  image_title?: string | null;
+  scene_id?: string | null;
+}
 
 export interface PublicMystery {
   title: string;
@@ -90,6 +102,7 @@ export interface RoomState {
   players: { id: string; name: string; points: number; accusations_used: number }[];
   next_seq: number;
   you?: PlayerView;
+  finds_by_player?: Record<string, ClueSummary[]>;
 }
 
 export const api = {

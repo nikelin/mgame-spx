@@ -13,6 +13,7 @@ from spgame import events as ev
 from spgame import scoring, storyteller
 from spgame.llm_api import router as llm_router
 from spgame.portraits import pool as portrait_pool, PORTRAITS_DIR
+from spgame.clue_images import CLUE_IMAGES_DIR
 from spgame.models import (
     AccuseReq,
     CreateRoomReq,
@@ -86,6 +87,13 @@ if PORTRAITS_DIR.exists():
         "/portraits",
         StaticFiles(directory=str(PORTRAITS_DIR)),
         name="portraits",
+    )
+
+if CLUE_IMAGES_DIR.exists():
+    app.mount(
+        "/clue_images",
+        StaticFiles(directory=str(CLUE_IMAGES_DIR)),
+        name="clue_images",
     )
 
 
@@ -185,6 +193,24 @@ async def get_state(code: str, token: str | None = Query(default=None)):
                 "discovered_clues": _player_clues(room, player),
                 "is_host": player.id == room.host_id,
             }
+    # Also expose per-player public clue summaries (image + title only) so a UI loading
+    # mid-game can render the right panel without replaying the SSE history.
+    if room.mystery is not None:
+        clue_by_id = {c.id: c for c in room.mystery.clues}
+        finds: dict[str, list[dict]] = {}
+        for p in room.players.values():
+            finds[p.id] = []
+            for cid in sorted(p.discovered_clue_ids):
+                c = clue_by_id.get(cid)
+                if c is None:
+                    continue
+                finds[p.id].append({
+                    "clue_id": c.id,
+                    "image_url": c.image_url,
+                    "image_title": c.image_title,
+                    "scene_id": c.scene_id,
+                })
+        state["finds_by_player"] = finds
     return state
 
 
@@ -192,7 +218,10 @@ def _player_clues(room, player) -> list[dict]:
     if room.mystery is None:
         return []
     return [
-        {"id": c.id, "text": c.text, "points": c.points, "scene_id": c.scene_id}
+        {
+            "id": c.id, "text": c.text, "points": c.points, "scene_id": c.scene_id,
+            "image_url": c.image_url, "image_title": c.image_title,
+        }
         for c in room.mystery.clues
         if c.id in player.discovered_clue_ids
     ]
@@ -239,6 +268,8 @@ async def start_game(code: str, body: StartReq):
     # Assign each suspect a portrait from the pre-generated pool (matches gender + age_range,
     # avoids duplicates within the same mystery). Mutates mystery.suspects in place.
     portrait_pool.assign(mystery)
+    # Match each clue to its best-fit image from the clue image pool. One LLM call total.
+    await storyteller.assign_clue_images(mystery)
 
     async with store.lock_for(room.code):
         room.mystery = mystery
@@ -334,14 +365,24 @@ async def send_message(code: str, body: MessageReq):
                 {"clues": revealed, "points_awarded": clue_points},
                 private_to=player.id,
             )
-            # Public notification — others see that someone got a clue, but not what
+            # Public clue-found event so other players' UIs can show the image + title
+            # attribution next to the player who found it (clue text stays private).
+            public_summaries = [
+                {
+                    "clue_id": c["id"],
+                    "image_url": c.get("image_url"),
+                    "image_title": c.get("image_title"),
+                    "scene_id": c.get("scene_id"),
+                }
+                for c in revealed
+            ]
             ev.append_and_publish(
-                room, broadcaster, "message",
+                room, broadcaster, "clue_found",
                 {
                     "player_id": player.id,
                     "name": player.name,
-                    "text": f"{player.name} uncovered {len(revealed)} clue(s) (+{clue_points} pts).",
-                    "role": "system",
+                    "clues": public_summaries,
+                    "points_awarded": clue_points,
                     "leaderboard": scoring.leaderboard(room),
                 },
             )

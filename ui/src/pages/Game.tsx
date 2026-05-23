@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "../App";
-import { api, resolveAssetUrl, type RoomState, type Clue, type Suspect } from "../api";
+import { api, resolveAssetUrl, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
 import { subscribe, type ServerEvent } from "../realtime";
 
 interface Props {
@@ -27,13 +27,28 @@ export function Game({ session, onLeave }: Props) {
   const [portraits, setPortraits] = useState<Record<string, string>>({});
   const [narration, setNarration] = useState<string>("");
   const [narrationDone, setNarrationDone] = useState<boolean>(false);
+  // Per-player public clue summaries: player_id → list of {clue_id, image, title}
+  const [foundByPlayer, setFoundByPlayer] = useState<Record<string, ClueSummary[]>>({});
+  // Full clue text only for clues YOU discovered: clue_id → Clue
+  const [myClueText, setMyClueText] = useState<Record<string, Clue>>({});
   const chatBottom = useRef<HTMLDivElement>(null);
 
   // Initial snapshot
   useEffect(() => {
     let cancelled = false;
     api.getState(session.code, session.token)
-      .then((s) => { if (!cancelled) setState(s); })
+      .then((s) => {
+        if (cancelled) return;
+        setState(s);
+        // Hydrate per-player finds and self-clues from the snapshot so reload mid-game
+        // doesn't lose the right-panel data.
+        if (s.finds_by_player) setFoundByPlayer(s.finds_by_player);
+        if (s.you?.discovered_clues) {
+          const map: Record<string, Clue> = {};
+          for (const c of s.you.discovered_clues) map[c.id] = c as Clue;
+          setMyClueText(map);
+        }
+      })
       .catch((e) => { if (!cancelled) setError(String(e.message ?? e)); });
     return () => { cancelled = true; };
   }, [session.code, session.token]);
@@ -73,6 +88,26 @@ export function Game({ session, onLeave }: Props) {
       setNarrationDone(true);
       return;
     }
+    if (ev.kind === "clue_found") {
+      const pid = ev.payload.player_id as string;
+      const newClues = (ev.payload.clues as ClueSummary[]) ?? [];
+      setFoundByPlayer((prev) => {
+        const existing = prev[pid] ?? [];
+        const have = new Set(existing.map((c) => c.clue_id));
+        const merged = [...existing, ...newClues.filter((c) => !have.has(c.clue_id))];
+        return { ...prev, [pid]: merged };
+      });
+      // Fall through to chat log handling below — also produces the "X uncovered N" line
+    }
+    if (ev.kind === "clue") {
+      // Private — only the discovering player sees this. Cache full text by clue id.
+      const clues = (ev.payload.clues as Clue[]) ?? [];
+      setMyClueText((prev) => {
+        const next = { ...prev };
+        for (const c of clues) next[c.id] = c;
+        return next;
+      });
+    }
     setChat((prev) => {
       // De-dupe by seq
       if (prev.some((l) => l.seq === ev.seq)) return prev;
@@ -94,6 +129,12 @@ export function Game({ session, onLeave }: Props) {
             seq: ev.seq, role: "self-clue",
             text: `You uncovered ${ev.payload.clues.length} clue(s): +${ev.payload.points_awarded} pts`,
             clues: ev.payload.clues,
+          });
+          break;
+        case "clue_found":
+          next.push({
+            seq: ev.seq, role: "system",
+            text: `${ev.payload.name} uncovered ${ev.payload.clues.length} clue(s) (+${ev.payload.points_awarded} pts).`,
           });
           break;
         case "accuse":
@@ -237,6 +278,9 @@ export function Game({ session, onLeave }: Props) {
             accusing={accusing}
             isOver={state.status === "over"}
             portraits={portraits}
+            foundByPlayer={foundByPlayer}
+            myClueText={myClueText}
+            youPlayerId={state.you?.id ?? null}
           />
         </div>
       )}
@@ -491,6 +535,21 @@ function MysteryPanel({
   );
 }
 
+function ClueChip({ url, title, text }: { url: string | null; title: string; text: string | null | undefined }) {
+  const resolved = resolveAssetUrl(url);
+  const tooltip = text ? `${title}\n\n${text}` : title;
+  return (
+    <div style={styles.clueChip} title={tooltip}>
+      {resolved ? (
+        <img src={resolved} alt={title} style={styles.clueThumb} />
+      ) : (
+        <div style={{ ...styles.clueThumb, ...styles.clueThumbFallback }}>?</div>
+      )}
+      <div style={styles.clueChipLabel}>{title}</div>
+    </div>
+  );
+}
+
 function Portrait({ url, name, size }: { url: string | null; name: string; size: number }) {
   const initials = name.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   const resolved = resolveAssetUrl(url);
@@ -529,17 +588,44 @@ function Portrait({ url, name, size }: { url: string | null; name: string; size:
   );
 }
 
-function SidePanel({ state, onAccuse, accusing, isOver, portraits }: any) {
+function SidePanel({
+  state, onAccuse, accusing, isOver, portraits,
+  foundByPlayer, myClueText, youPlayerId,
+}: any) {
   return (
     <div style={styles.sidePanel}>
-      <div style={styles.panelTitle}>Leaderboard</div>
+      <div style={styles.panelTitle}>Leaderboard &amp; finds</div>
       <ul style={styles.scoreList}>
-        {[...state.players].sort((a: any, b: any) => b.points - a.points).map((p: any) => (
-          <li key={p.id} style={styles.scoreRow}>
-            <span>{p.name}{state.winner_id === p.id ? " 🏆" : ""}</span>
-            <b>{p.points}</b>
-          </li>
-        ))}
+        {[...state.players].sort((a: any, b: any) => b.points - a.points).map((p: any) => {
+          const finds: ClueSummary[] = foundByPlayer[p.id] ?? [];
+          const isYou = p.id === youPlayerId;
+          return (
+            <li key={p.id} style={styles.playerBlock}>
+              <div style={styles.scoreRow}>
+                <span>
+                  {p.name}{state.winner_id === p.id ? " 🏆" : ""}
+                  {isYou && <span style={styles.youBadge}>you</span>}
+                </span>
+                <b>{p.points}</b>
+              </div>
+              {finds.length > 0 && (
+                <div style={styles.findStrip}>
+                  {finds.map((c) => {
+                    const text = isYou ? myClueText[c.clue_id]?.text : null;
+                    return (
+                      <ClueChip
+                        key={c.clue_id}
+                        url={c.image_url ?? null}
+                        title={c.image_title ?? "Unknown"}
+                        text={text}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {state.mystery && !isOver && (
         <>
@@ -654,8 +740,7 @@ const styles: Record<string, React.CSSProperties> = {
   smallMuted: { color: "var(--muted)", fontSize: 12, marginTop: 4 },
   scoreList: { listStyle: "none", padding: 0, margin: 0 },
   scoreRow: {
-    display: "flex", justifyContent: "space-between", padding: "6px 8px",
-    borderBottom: "1px solid #232c3d",
+    display: "flex", justifyContent: "space-between", padding: "4px 4px",
   },
   gameOver: {
     marginTop: 18, padding: 12, background: "rgba(212,160,78,0.10)", borderRadius: 4,
@@ -690,6 +775,47 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     borderBottom: "1px dotted var(--accent)",
     cursor: "help",
+  },
+  playerBlock: {
+    padding: "8px 4px 10px",
+    borderBottom: "1px solid #232c3d",
+  },
+  findStrip: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+  },
+  clueChip: {
+    width: 64,
+    display: "flex", flexDirection: "column", alignItems: "center",
+    cursor: "help",
+  },
+  clueThumb: {
+    width: 56, height: 56, objectFit: "cover", borderRadius: 4,
+    background: "#0a1018", border: "1px solid #2d3a52",
+  },
+  clueThumbFallback: {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    color: "var(--muted)", fontWeight: 700,
+  },
+  clueChipLabel: {
+    fontSize: 9.5,
+    textAlign: "center",
+    color: "var(--muted)",
+    marginTop: 3,
+    lineHeight: 1.15,
+    width: 64,
+    overflow: "hidden",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+  },
+  youBadge: {
+    marginLeft: 6, fontSize: 9, textTransform: "uppercase",
+    background: "var(--accent)", color: "#1a1410",
+    padding: "1px 5px", borderRadius: 3, letterSpacing: 1,
+    verticalAlign: "middle",
   },
   playerList: { listStyle: "none", padding: 0, margin: "8px 0 24px" },
   playerRow: {

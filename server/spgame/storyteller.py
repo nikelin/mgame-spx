@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 from pydantic import ValidationError
 
 from .models import GameRoom, Mystery, Player, StorytellerResult, Suspect
+from .clue_images import pool as clue_image_pool
 
 
 _client: AsyncOpenAI | None = None
@@ -285,6 +286,77 @@ async def stream_opening_narration(mystery: Mystery, on_chunk) -> None:
                 await on_chunk(delta)
 
     await asyncio.wait_for(_run(), timeout=90.0)
+
+
+CLUE_IMAGE_ASSIGN_SYSTEM = """You match crime-scene clues to images from a fixed catalog.
+
+Each clue is a short evidence description. Each catalog entry has an id, a title, and tags.
+For EVERY clue, pick the single best matching image_id, even if the match is only thematic
+or approximate. Examples of acceptable softer matches:
+- "a torn page from the victim's diary" → charred_fragment or letter_torn (paper evidence)
+- "a tarot card warning of betrayal" → photograph_old or theatre_ticket (any flat card prop)
+- "a half-eaten meal abandoned on the bar" → whiskey_bottle (closest scene-of-evidence prop)
+- "a strand of hair on the windowsill" → lock_of_hair
+- "a peculiar smudge on the doorknob" → fingerprint smudge → use bloodstain_floor or ash_pile
+
+Hard rule: return a real image_id from the catalog for every clue. NEVER return null.
+If truly nothing fits, pick `charred_fragment` as the generic "mysterious evidence" fallback.
+
+Return only a JSON object: {"assignments": [{"clue_id": "c1", "image_id": "knife_bloodied"}, ...]}.
+The image_id MUST be one from the catalog."""
+
+
+async def assign_clue_images(mystery: Mystery) -> None:
+    """Use an LLM to map each clue in the mystery to the best-matching image_id from the
+    static catalog, then populate clue.image_url + clue.image_title in place."""
+    if not clue_image_pool.entries:
+        return
+    if not mystery.clues:
+        return
+
+    client = get_client()
+    catalog = clue_image_pool.catalog()
+    clues_payload = [
+        {"clue_id": c.id, "text": c.text}
+        for c in mystery.clues
+    ]
+    user_msg = (
+        f"Catalog of available images:\n\n{catalog}\n\n"
+        f"Clues to match:\n\n```json\n{json.dumps(clues_payload, indent=2)}\n```"
+    )
+
+    async def _call() -> str:
+        resp = await client.chat.completions.create(
+            model=STORYTELLER_MODEL,
+            messages=[
+                {"role": "system", "content": CLUE_IMAGE_ASSIGN_SYSTEM},
+                {"role": "user", "content": user_msg},
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3,
+            max_tokens=2000,
+        )
+        return resp.choices[0].message.content or "{}"
+
+    try:
+        raw = await asyncio.wait_for(_call(), timeout=30.0)
+        data = json.loads(raw)
+    except Exception as e:
+        print(f"[clue image assignment failed] {type(e).__name__}: {e}", flush=True)
+        return
+
+    assignments = data.get("assignments") or data.get("matches") or []
+    by_clue_id = {a.get("clue_id"): a.get("image_id") for a in assignments if isinstance(a, dict)}
+    fallback_id = "charred_fragment" if "charred_fragment" in clue_image_pool.by_id else (
+        clue_image_pool.entries[0]["id"] if clue_image_pool.entries else None
+    )
+    for clue in mystery.clues:
+        image_id = by_clue_id.get(clue.id)
+        if not image_id or image_id not in clue_image_pool.by_id:
+            image_id = fallback_id
+        if image_id:
+            clue.image_url = clue_image_pool.url_for(image_id)
+            clue.image_title = clue_image_pool.title_for(image_id)
 
 
 async def generate_suspect_portrait(suspect: Suspect, setting: str) -> str:
