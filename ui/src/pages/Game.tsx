@@ -32,7 +32,9 @@ export function Game({ session, onLeave }: Props) {
   const [foundByPlayer, setFoundByPlayer] = useState<Record<string, ClueSummary[]>>({});
   // Full clue text only for clues YOU discovered: clue_id → Clue
   const [myClueText, setMyClueText] = useState<Record<string, Clue>>({});
-  const chatBottom = useRef<HTMLDivElement>(null);
+  // Scroll target is the chat log container itself (not a sentinel + scrollIntoView, which
+  // would also scroll the page on short conversations).
+  const chatLogRef = useRef<HTMLDivElement>(null);
 
   // Initial snapshot
   useEffect(() => {
@@ -69,7 +71,13 @@ export function Game({ session, onLeave }: Props) {
   }, [session.code, session.token, !!state]);
 
   useEffect(() => {
-    chatBottom.current?.scrollIntoView({ behavior: "smooth" });
+    const el = chatLogRef.current;
+    if (!el) return;
+    // Scroll only the chat log to its bottom; never propagate to the page/window.
+    // No-op when the content fits within the visible area.
+    if (el.scrollHeight > el.clientHeight) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
   }, [chat.length]);
 
   function handleEvent(ev: ServerEvent) {
@@ -263,7 +271,7 @@ export function Game({ session, onLeave }: Props) {
             setInput={setInput}
             sending={sending || state.status === "over"}
             onSend={sendMessage}
-            chatBottomRef={chatBottom}
+            chatLogRef={chatLogRef}
             status={state.status}
             suspects={state.mystery.suspects}
           />
@@ -327,11 +335,11 @@ function Lobby({ players, isHost, starting, onStart, code, error }: any) {
   );
 }
 
-function ChatPanel({ lines, input, setInput, sending, onSend, chatBottomRef, status, suspects }: any) {
+function ChatPanel({ lines, input, setInput, sending, onSend, chatLogRef, status, suspects }: any) {
   return (
     <div style={styles.chatPanel}>
       <div style={styles.panelTitle}>Storyteller</div>
-      <div style={styles.chatLog}>
+      <div ref={chatLogRef} style={styles.chatLog}>
         {lines.map((l: ChatLine) => (
           <ChatLineView key={l.seq} line={l} suspects={suspects} />
         ))}
@@ -358,7 +366,6 @@ function ChatPanel({ lines, input, setInput, sending, onSend, chatBottomRef, sta
             {sending ? "…" : "Send"}
           </button>
         </div>
-        <div ref={chatBottomRef} />
       </div>
     </div>
   );
