@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Session } from "../App";
 import { api, resolveAssetUrl, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
 import { subscribe, type ServerEvent } from "../realtime";
@@ -537,6 +538,10 @@ function MysteryPanel({
   );
 }
 
+const CLUE_POP_WIDTH = 280;
+const CLUE_POP_HEIGHT = 340; // approximate; used only to clamp vertical position
+const CLUE_POP_GAP = 12;
+
 function ClueChip({
   summary, fullText, sceneName, finderName, isYour,
 }: {
@@ -547,17 +552,53 @@ function ClueChip({
   isYour: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; placement: "left" | "right"; chipMidY: number } | null>(null);
+  const chipRef = useRef<HTMLDivElement>(null);
   const resolved = resolveAssetUrl(summary.image_url ?? null);
   const title = summary.image_title ?? "Unknown evidence";
+
+  const updatePosition = useCallback(() => {
+    const el = chipRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    // Prefer left placement (popover sits to the left of the chip) since the chips live in
+    // the right-hand panel; fall back to right if there isn't enough room.
+    const placement: "left" | "right" =
+      rect.left - CLUE_POP_WIDTH - CLUE_POP_GAP >= 8 ? "left" : "right";
+    const left = placement === "left"
+      ? rect.left - CLUE_POP_WIDTH - CLUE_POP_GAP
+      : rect.right + CLUE_POP_GAP;
+    // Vertically clamp so the popover fits in the viewport
+    const top = Math.max(
+      8,
+      Math.min(rect.top, window.innerHeight - CLUE_POP_HEIGHT - 8),
+    );
+    setPos({ top, left, placement, chipMidY: rect.top + rect.height / 2 });
+  }, []);
+
+  // Recompute position whenever the popover opens or the page scrolls/resizes
+  useEffect(() => {
+    if (!open) return;
+    updatePosition();
+    const onScrollOrResize = () => updatePosition();
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [open, updatePosition]);
 
   // Click-outside closes the popover
   useEffect(() => {
     if (!open) return;
     function onDocClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (chipRef.current && chipRef.current.contains(target)) return;
+      // The popover lives in a portal so we can't use ref containment; close on any other click
+      const popoverEl = document.getElementById("clue-popover-active");
+      if (popoverEl && popoverEl.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
@@ -565,7 +606,7 @@ function ClueChip({
 
   return (
     <div
-      ref={wrapRef}
+      ref={chipRef}
       style={styles.clueChip}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
@@ -584,9 +625,26 @@ function ClueChip({
         <div style={styles.clueChipLabel}>{title}</div>
       </button>
 
-      {open && (
-        <div style={styles.cluePopover} role="tooltip">
-          <div style={styles.cluePopArrow} />
+      {open && pos && createPortal(
+        <div
+          id="clue-popover-active"
+          role="tooltip"
+          style={{
+            ...styles.cluePopover,
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+          }}
+          // Keep popover visible while the pointer is over it
+          onMouseEnter={() => setOpen(true)}
+          onMouseLeave={() => setOpen(false)}
+        >
+          <div
+            style={{
+              ...(pos.placement === "left" ? styles.cluePopArrowRight : styles.cluePopArrowLeft),
+              top: Math.max(12, Math.min(pos.chipMidY - pos.top - 6, CLUE_POP_HEIGHT - 24)),
+            }}
+          />
           {resolved && (
             <img src={resolved} alt={title} style={styles.cluePopImage} />
           )}
@@ -615,7 +673,8 @@ function ClueChip({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -903,27 +962,35 @@ const styles: Record<string, React.CSSProperties> = {
     WebkitBoxOrient: "vertical",
   },
   cluePopover: {
-    position: "absolute",
-    right: "calc(100% + 12px)",
-    top: 0,
-    width: 280,
+    // position/top/left set inline at render time (computed via getBoundingClientRect)
+    width: CLUE_POP_WIDTH,
     background: "#0f1520",
     border: "1px solid var(--accent)",
     borderRadius: 6,
     boxShadow: "0 8px 28px rgba(0,0,0,0.55)",
     padding: 0,
-    zIndex: 50,
+    zIndex: 2147483000,
     display: "flex", flexDirection: "column",
     overflow: "hidden",
   },
-  cluePopArrow: {
+  // Arrow on the RIGHT edge of the popover — used when popover sits to the LEFT of the chip
+  cluePopArrowRight: {
     position: "absolute",
-    top: 20,
     right: -7,
     width: 12, height: 12,
     background: "#0f1520",
     borderRight: "1px solid var(--accent)",
     borderTop: "1px solid var(--accent)",
+    transform: "rotate(45deg)",
+  },
+  // Arrow on the LEFT edge of the popover — used when popover sits to the RIGHT of the chip
+  cluePopArrowLeft: {
+    position: "absolute",
+    left: -7,
+    width: 12, height: 12,
+    background: "#0f1520",
+    borderLeft: "1px solid var(--accent)",
+    borderBottom: "1px solid var(--accent)",
     transform: "rotate(45deg)",
   },
   cluePopImage: {
