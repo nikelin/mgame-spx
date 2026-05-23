@@ -281,6 +281,8 @@ export function Game({ session, onLeave }: Props) {
             foundByPlayer={foundByPlayer}
             myClueText={myClueText}
             youPlayerId={state.you?.id ?? null}
+            scenes={state.mystery.scenes}
+            suspects={state.mystery.suspects}
           />
         </div>
       )}
@@ -535,17 +537,86 @@ function MysteryPanel({
   );
 }
 
-function ClueChip({ url, title, text }: { url: string | null; title: string; text: string | null | undefined }) {
-  const resolved = resolveAssetUrl(url);
-  const tooltip = text ? `${title}\n\n${text}` : title;
+function ClueChip({
+  summary, fullText, sceneName, finderName, isYour,
+}: {
+  summary: ClueSummary;
+  fullText: string | null;
+  sceneName: string | null;
+  finderName: string;
+  isYour: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const resolved = resolveAssetUrl(summary.image_url ?? null);
+  const title = summary.image_title ?? "Unknown evidence";
+
+  // Click-outside closes the popover
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
   return (
-    <div style={styles.clueChip} title={tooltip}>
-      {resolved ? (
-        <img src={resolved} alt={title} style={styles.clueThumb} />
-      ) : (
-        <div style={{ ...styles.clueThumb, ...styles.clueThumbFallback }}>?</div>
+    <div
+      ref={wrapRef}
+      style={styles.clueChip}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        style={styles.clueChipBtn}
+        aria-label={`Inspect ${title}`}
+      >
+        {resolved ? (
+          <img src={resolved} alt={title} style={styles.clueThumb} />
+        ) : (
+          <div style={{ ...styles.clueThumb, ...styles.clueThumbFallback }}>?</div>
+        )}
+        <div style={styles.clueChipLabel}>{title}</div>
+      </button>
+
+      {open && (
+        <div style={styles.cluePopover} role="tooltip">
+          <div style={styles.cluePopArrow} />
+          {resolved && (
+            <img src={resolved} alt={title} style={styles.cluePopImage} />
+          )}
+          <div style={styles.cluePopBody}>
+            <div style={styles.cluePopTitle}>{title}</div>
+            <div style={styles.cluePopMeta}>
+              <span>Found by <b>{finderName}</b></span>
+              {summary.points != null && (
+                <span style={styles.cluePopPoints}>+{summary.points} pts</span>
+              )}
+            </div>
+            {sceneName && (
+              <div style={styles.cluePopScene}>Scene: <i>{sceneName}</i></div>
+            )}
+            <div style={styles.cluePopText}>
+              {isYour && fullText ? (
+                fullText
+              ) : isYour ? (
+                <span style={{ color: "var(--muted)", fontStyle: "italic" }}>
+                  Full description not loaded — try reopening the room.
+                </span>
+              ) : (
+                <span style={{ color: "var(--muted)", fontStyle: "italic" }}>
+                  Hidden — {finderName} alone knows the full detail. Find it yourself for the points.
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       )}
-      <div style={styles.clueChipLabel}>{title}</div>
     </div>
   );
 }
@@ -590,8 +661,14 @@ function Portrait({ url, name, size }: { url: string | null; name: string; size:
 
 function SidePanel({
   state, onAccuse, accusing, isOver, portraits,
-  foundByPlayer, myClueText, youPlayerId,
+  foundByPlayer, myClueText, youPlayerId, scenes,
 }: any) {
+  const sceneById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const s of (scenes ?? [])) m.set(s.id, s.name);
+    return m;
+  }, [scenes]);
+
   return (
     <div style={styles.sidePanel}>
       <div style={styles.panelTitle}>Leaderboard &amp; finds</div>
@@ -611,13 +688,15 @@ function SidePanel({
               {finds.length > 0 && (
                 <div style={styles.findStrip}>
                   {finds.map((c) => {
-                    const text = isYou ? myClueText[c.clue_id]?.text : null;
+                    const fullText = isYou ? myClueText[c.clue_id]?.text ?? null : null;
                     return (
                       <ClueChip
                         key={c.clue_id}
-                        url={c.image_url ?? null}
-                        title={c.image_title ?? "Unknown"}
-                        text={text}
+                        summary={c}
+                        fullText={fullText}
+                        sceneName={c.scene_id ? sceneById.get(c.scene_id) ?? null : null}
+                        finderName={p.name}
+                        isYour={isYou}
                       />
                     );
                   })}
@@ -788,8 +867,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   clueChip: {
     width: 64,
+    position: "relative",
     display: "flex", flexDirection: "column", alignItems: "center",
-    cursor: "help",
+  },
+  clueChipBtn: {
+    appearance: "none",
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    margin: 0,
+    cursor: "pointer",
+    display: "flex", flexDirection: "column", alignItems: "center",
+    width: "100%",
+    color: "inherit",
+    font: "inherit",
   },
   clueThumb: {
     width: 56, height: 56, objectFit: "cover", borderRadius: 4,
@@ -810,6 +901,69 @@ const styles: Record<string, React.CSSProperties> = {
     display: "-webkit-box",
     WebkitLineClamp: 2,
     WebkitBoxOrient: "vertical",
+  },
+  cluePopover: {
+    position: "absolute",
+    right: "calc(100% + 12px)",
+    top: 0,
+    width: 280,
+    background: "#0f1520",
+    border: "1px solid var(--accent)",
+    borderRadius: 6,
+    boxShadow: "0 8px 28px rgba(0,0,0,0.55)",
+    padding: 0,
+    zIndex: 50,
+    display: "flex", flexDirection: "column",
+    overflow: "hidden",
+  },
+  cluePopArrow: {
+    position: "absolute",
+    top: 20,
+    right: -7,
+    width: 12, height: 12,
+    background: "#0f1520",
+    borderRight: "1px solid var(--accent)",
+    borderTop: "1px solid var(--accent)",
+    transform: "rotate(45deg)",
+  },
+  cluePopImage: {
+    width: "100%",
+    height: 200,
+    objectFit: "cover",
+    display: "block",
+    borderBottom: "1px solid #2d3a52",
+  },
+  cluePopBody: {
+    padding: "10px 12px 12px",
+  },
+  cluePopTitle: {
+    fontFamily: "Georgia, serif",
+    color: "var(--accent)",
+    fontSize: 15,
+    fontWeight: 600,
+    marginBottom: 6,
+  },
+  cluePopMeta: {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    fontSize: 11,
+    color: "var(--muted)",
+    marginBottom: 4,
+  },
+  cluePopPoints: {
+    color: "var(--good)",
+    fontWeight: 700,
+  },
+  cluePopScene: {
+    fontSize: 11,
+    color: "var(--muted)",
+    marginBottom: 8,
+  },
+  cluePopText: {
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: "var(--ink)",
+    borderTop: "1px solid #232c3d",
+    paddingTop: 8,
   },
   youBadge: {
     marginLeft: 6, fontSize: 9, textTransform: "uppercase",

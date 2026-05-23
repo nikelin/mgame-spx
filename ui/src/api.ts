@@ -70,6 +70,7 @@ export interface ClueSummary {
   image_url?: string | null;
   image_title?: string | null;
   scene_id?: string | null;
+  points?: number | null;
 }
 
 export interface PublicMystery {

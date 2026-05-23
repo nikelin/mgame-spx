@@ -209,6 +209,7 @@ async def get_state(code: str, token: str | None = Query(default=None)):
                     "image_url": c.image_url,
                     "image_title": c.image_title,
                     "scene_id": c.scene_id,
+                    "points": c.points,
                 })
         state["finds_by_player"] = finds
     return state
@@ -373,6 +374,7 @@ async def send_message(code: str, body: MessageReq):
                     "image_url": c.get("image_url"),
                     "image_title": c.get("image_title"),
                     "scene_id": c.get("scene_id"),
+                    "points": c.get("points"),
                 }
                 for c in revealed
             ]

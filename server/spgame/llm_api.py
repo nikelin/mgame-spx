@@ -266,6 +266,7 @@ async def llm_say(request: Request, body: dict) -> Response:
                     "image_url": c.get("image_url"),
                     "image_title": c.get("image_title"),
                     "scene_id": c.get("scene_id"),
+                    "points": c.get("points"),
                 }
                 for c in revealed
             ]
