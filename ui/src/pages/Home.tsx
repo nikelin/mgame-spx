@@ -4,12 +4,15 @@ import type { Session } from "../App";
 
 interface Props {
   onJoined: (s: Session) => void;
+  initialCode?: string | null;
 }
 
-export function Home({ onJoined }: Props) {
-  const [mode, setMode] = useState<"create" | "join">("create");
+export function Home({ onJoined, initialCode }: Props) {
+  // If the user landed via a shareable URL (?room=ABCD), force the Join tab and pre-fill
+  // the code so they only need to enter their name.
+  const [mode, setMode] = useState<"create" | "join">(initialCode ? "join" : "create");
   const [name, setName] = useState("");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(initialCode ?? "");
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,12 @@ export function Home({ onJoined }: Props) {
             onClick={() => setMode("join")}
           >Join a room</button>
         </div>
+
+        {initialCode && (
+          <div style={styles.invite}>
+            You were invited to room <code style={styles.inviteCode}>{initialCode}</code> — enter your name to join.
+          </div>
+        )}
 
         <label style={styles.label}>Your name</label>
         <input
@@ -155,4 +164,21 @@ const styles: Record<string, React.CSSProperties> = {
   },
   muted: { color: "var(--muted)", marginTop: 24, fontSize: 12, lineHeight: 1.5 },
   hint: { color: "var(--muted)", marginTop: 6, fontSize: 11, lineHeight: 1.45 },
+  invite: {
+    background: "rgba(212,160,78,0.10)",
+    border: "1px solid var(--accent)",
+    borderRadius: 4,
+    padding: "8px 12px",
+    color: "var(--ink)",
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  inviteCode: {
+    color: "var(--accent)",
+    fontWeight: 700,
+    letterSpacing: 3,
+    background: "#0a1018",
+    padding: "1px 6px",
+    borderRadius: 3,
+  },
 };

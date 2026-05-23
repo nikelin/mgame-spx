@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "../App";
-import { api, resolveAssetUrl, type AccusationLogEntry, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
+import { api, apiBaseSync, resolveAssetUrl, type AccusationLogEntry, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
 import { subscribe, type ServerEvent } from "../realtime";
 
 interface Props {
@@ -342,6 +342,9 @@ function Lobby({ players, isHost, starting, onStart, code, error }: any) {
       <p style={{ color: "var(--muted)" }}>
         Share the room code <code style={styles.roomCodeBig}>{code}</code> with other players.
       </p>
+
+      <SharePanel code={code} />
+
       <h3>Players in the room</h3>
       <ul style={styles.playerList}>
         {players.map((p: any) => (
@@ -363,6 +366,66 @@ function Lobby({ players, isHost, starting, onStart, code, error }: any) {
         <p style={{ color: "var(--muted)" }}>Waiting for the host to start the game…</p>
       )}
       {error && <div style={styles.errorBar}>{error}</div>}
+    </div>
+  );
+}
+
+function SharePanel({ code }: { code: string }) {
+  // Player URL: this UI's origin + ?room=CODE — recipients land on the join page with the
+  // code pre-filled and only need to enter their name.
+  const playerUrl = useMemo(() => {
+    const u = new URL(window.location.href);
+    u.searchParams.set("room", code);
+    return u.toString();
+  }, [code]);
+  // LLM URL: server-side endpoint that returns a Markdown briefing pre-loaded with the
+  // room code, plus curl examples. Paste this into Claude / ChatGPT and the model can
+  // join + play from inside the chat. /llm (briefing) is a better entry than /llm/join
+  // because it teaches the LLM the full contract first.
+  const llmUrl = useMemo(() => {
+    const base = apiBaseSync();
+    return `${base}/llm?room=${code}`;
+  }, [code]);
+
+  return (
+    <div style={styles.sharePanel}>
+      <div style={styles.shareTitle}>Invite others</div>
+
+      <div style={styles.shareLabel}>Player link — for humans</div>
+      <CopyableUrl url={playerUrl} />
+
+      <div style={{ ...styles.shareLabel, marginTop: 12 }}>LLM link — paste into Claude / ChatGPT</div>
+      <CopyableUrl url={llmUrl} />
+      <div style={styles.shareHint}>
+        The LLM URL returns a Markdown briefing with the room context and curl examples;
+        replace <code>YOUR_BOT_NAME</code> with whatever you'd like the LLM-controlled player to be called.
+      </div>
+    </div>
+  );
+}
+
+function CopyableUrl({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      // Fallback if clipboard API isn't available
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); setCopied(true); setTimeout(() => setCopied(false), 1400); }
+      catch { /* shrug */ }
+      finally { ta.remove(); }
+    }
+  }
+  return (
+    <div style={styles.copyRow}>
+      <input style={styles.copyInput} value={url} readOnly onFocus={(e) => e.target.select()} />
+      <button onClick={copy} style={styles.copyBtn}>{copied ? "Copied ✓" : "Copy"}</button>
     </div>
   );
 }
@@ -1168,5 +1231,36 @@ const styles: Record<string, React.CSSProperties> = {
   errorBar: {
     background: "rgba(225,107,107,0.20)", color: "var(--danger)",
     padding: 10, borderRadius: 4, marginTop: 8,
+  },
+  sharePanel: {
+    margin: "16px 0 24px",
+    padding: 14,
+    background: "var(--panel-2)",
+    borderRadius: 6,
+    border: "1px solid #2d3a52",
+  },
+  shareTitle: {
+    fontSize: 12, textTransform: "uppercase", letterSpacing: 1.5,
+    color: "var(--accent)", marginBottom: 10,
+  },
+  shareLabel: {
+    fontSize: 11, color: "var(--muted)",
+    textTransform: "uppercase", letterSpacing: 1, marginBottom: 4,
+  },
+  copyRow: { display: "flex", gap: 6 },
+  copyInput: {
+    flex: 1, padding: "7px 10px",
+    background: "#0a1018", border: "1px solid #2d3a52",
+    color: "var(--ink)", borderRadius: 4,
+    fontFamily: "ui-monospace, monospace", fontSize: 12,
+  },
+  copyBtn: {
+    padding: "7px 14px", borderRadius: 4,
+    background: "#2d3a52", color: "var(--ink)",
+    border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600,
+    minWidth: 78,
+  },
+  shareHint: {
+    marginTop: 6, color: "var(--muted)", fontSize: 11, lineHeight: 1.45,
   },
 };

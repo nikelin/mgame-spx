@@ -30,23 +30,37 @@ def _base_url(request: Request) -> str:
     return f"{request.url.scheme}://{request.url.netloc}"
 
 
-def _briefing(base: str) -> str:
+def _briefing(base: str, room_code: str | None = None) -> str:
+    # If a room code was passed in the URL, bake it into the curl examples so the LLM doesn't
+    # have to figure out where to put it. Otherwise show the generic placeholder.
+    code_for_examples = room_code or "ABCD"
+    invite_banner = (
+        f"## You were invited to room `{code_for_examples}`\n\n"
+        f"Use this exact code in the calls below. Pick any name you like for your player.\n\n"
+        if room_code else ""
+    )
     return f"""# spgame — LLM-direct play
 
 You are reading the live API for a multiplayer mystery game. A human at the UI has created a room with a 4-character code (e.g. `AB9X`). You can join as a player and play entirely through this HTTP surface — no browser needed.
 
-## How to play
+{invite_banner}## How to play
 
 You investigate a procedurally generated whodunit. Each turn, you message an LLM **storyteller** that reveals clues based on what you ask. You score points for clues you uncover (5-25 each). When you think you know the culprit, **accuse** them. A correct accusation wins +50 points and ends the game; a wrong one costs you 10 points (max 3 accusations per player).
 
 ## Quickstart
 
-1. **Join the room.** You need its 4-character code, which the human shares with you.
+1. **Join the room.** Pass the room code as `room=` (or `code=`).
 
    ```bash
    curl -s -X POST {base}/llm/join \\
      -H 'Content-Type: application/json' \\
-     -d '{{"code":"ABCD","name":"Sherlock"}}'
+     -d '{{"room":"{code_for_examples}","name":"Sherlock"}}'
+   ```
+
+   Or in one GET (handy when the host gives you a shareable link):
+
+   ```bash
+   curl -s '{base}/llm/join?room={code_for_examples}&name=Sherlock'
    ```
 
    Save the returned `token` — it authenticates every later call.
@@ -77,9 +91,9 @@ Every response from this API includes a **Next actions** footer with concrete ne
 
 ## Endpoint reference
 
-- `GET  /llm`                            — this page
-- `GET  /llm/join?code=ABCD&name=Bot`    — one-GET join (convenience for chat sessions)
-- `POST /llm/join`                       — JSON body `{{code, name}}`
+- `GET  /llm?room=ABCD`                  — this page (optionally room-aware)
+- `GET  /llm/join?room=ABCD&name=Bot`    — one-GET join (convenience for chat sessions)
+- `POST /llm/join`                       — JSON body `{{room, name}}`
 - `POST /llm/say`                        — JSON body `{{token, text}}`
 - `POST /llm/accuse`                     — JSON body `{{token, suspect_name}}` (or `suspect_id`)
 - `GET  /llm/poll?token=...&since=N`     — long-poll for new public events
@@ -173,13 +187,27 @@ def _transcript(room: GameRoom, player_id: str) -> list[dict]:
 
 
 @router.get("")
-async def llm_briefing(request: Request) -> Response:
-    return _md(_briefing(_base_url(request)))
+async def llm_briefing(
+    request: Request,
+    room: str | None = Query(default=None),
+    code: str | None = Query(default=None),
+) -> Response:
+    # Either ?room= or ?code= is accepted (we use both naming conventions in different places).
+    room_code = (room or code or "").upper().strip() or None
+    return _md(_briefing(_base_url(request), room_code))
 
 
 @router.get("/join")
-async def llm_join_get(request: Request, code: str, name: str) -> Response:
-    return await _do_join(request, code, name)
+async def llm_join_get(
+    request: Request,
+    name: str,
+    room: str | None = Query(default=None),
+    code: str | None = Query(default=None),
+) -> Response:
+    room_code = room or code
+    if not room_code:
+        raise HTTPException(400, "missing ?room= (or ?code=) query parameter")
+    return await _do_join(request, room_code, name)
 
 
 @router.post("/join")
@@ -187,7 +215,7 @@ async def llm_join_post(request: Request, body: dict) -> Response:
     code = body.get("code") or body.get("room")
     name = body.get("name")
     if not code or not name:
-        raise HTTPException(400, "body must include {code, name}")
+        raise HTTPException(400, "body must include {code (or room), name}")
     return await _do_join(request, code, name)
 
 

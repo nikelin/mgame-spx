@@ -32,12 +32,59 @@ function saveSession(s: Session | null) {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
+// The URL is the canonical source of truth for "which room am I in". ?room=ABCD lets
+// users share a link without depending on the recipient's localStorage.
+function readUrlRoom(): string | null {
+  try {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("room");
+    return code ? code.toUpperCase().replace(/[^A-Z0-9]/g, "") : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeUrlRoom(code: string | null) {
+  try {
+    const url = new URL(window.location.href);
+    if (code) url.searchParams.set("room", code);
+    else url.searchParams.delete("room");
+    window.history.replaceState(null, "", url.toString());
+  } catch {
+    // ignore
+  }
+}
+
 export function App() {
-  const [session, setSession] = useState<Session | null>(loadSession);
+  // On first mount: prefer the URL ?room=, then storage. If the URL specifies a different
+  // room than what's in storage, ignore storage so we don't auto-join the wrong room.
+  const [session, setSession] = useState<Session | null>(() => {
+    const urlCode = readUrlRoom();
+    const stored = loadSession();
+    if (urlCode && stored && stored.code === urlCode) return stored;
+    if (urlCode) return null;
+    return stored;
+  });
   const [resuming, setResuming] = useState(false);
 
   useEffect(() => {
     saveSession(session);
+    writeUrlRoom(session?.code ?? readUrlRoom());
+  }, [session]);
+
+  // React to browser back/forward — if the URL room changes, drop the session so the user
+  // can join the new one (or resume if it matches storage).
+  useEffect(() => {
+    function onPop() {
+      const urlCode = readUrlRoom();
+      if (urlCode == null) {
+        setSession(null);
+      } else if (session && session.code !== urlCode) {
+        setSession(null);
+      }
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, [session]);
 
   // If we have a stored session, refresh the token by re-joining with the saved name.
@@ -71,7 +118,12 @@ export function App() {
   }, []);
 
   if (!session) {
-    return <Home onJoined={(s) => setSession(s)} />;
+    return <Home onJoined={(s) => setSession(s)} initialCode={readUrlRoom()} />;
   }
-  return <Game session={session} onLeave={() => setSession(null)} />;
+  return (
+    <Game
+      session={session}
+      onLeave={() => { writeUrlRoom(null); setSession(null); }}
+    />
+  );
 }
