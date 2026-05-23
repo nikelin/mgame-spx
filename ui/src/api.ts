@@ -119,9 +119,10 @@ export interface RoomState {
 }
 
 export const api = {
-  createRoom: (host_name: string) =>
-    request<{ code: string; player_id: string; token: string; is_host: boolean }>(
-      "POST", "/rooms", { host_name },
+  createRoom: (host_name: string, openai_api_key?: string | null) =>
+    request<{ code: string; player_id: string; token: string; is_host: boolean; uses_custom_key: boolean }>(
+      "POST", "/rooms",
+      openai_api_key ? { host_name, openai_api_key } : { host_name },
     ),
   // Join is idempotent for the same name (case-insensitive): a returning player gets
   // back their existing player_id and a (re-issued) token. Acts as a resume entry point.

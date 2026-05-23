@@ -116,6 +116,10 @@ class GameRoom(BaseModel):
     # Ordered log of every accusation attempt so the UI can show "Accused N times by X, Y"
     # under each suspect. Each entry: {ts, player_id, player_name, suspect_id, suspect_name, correct}.
     accusation_log: list[dict] = Field(default_factory=list)
+    # Optional per-room OpenAI API key. When set, takes precedence over the server's global
+    # OPENAI_API_KEY env var for every LLM call made on behalf of this room. Persisted with
+    # the rest of the room state so it survives restarts. NEVER echoed in /state or events.
+    openai_api_key: str | None = None
 
     def public_state(self) -> dict:
         return {
@@ -146,6 +150,12 @@ class GameRoom(BaseModel):
 
 class CreateRoomReq(BaseModel):
     host_name: str = Field(min_length=1, max_length=40)
+    openai_api_key: str | None = Field(
+        default=None,
+        description="Optional: a per-room OpenAI key to use for ALL LLM calls in this room "
+                    "instead of the server's global key. Useful when the host wants to pay for "
+                    "this game with their own quota.",
+    )
 
 
 class JoinRoomReq(BaseModel):

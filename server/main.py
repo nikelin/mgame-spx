@@ -156,12 +156,18 @@ async def root():
 
 @app.post("/rooms")
 async def create_room(body: CreateRoomReq):
-    room, host = await store.create_room(body.host_name)
+    # If the host supplied a per-room OpenAI key, do a *minimum* sanity check (prefix); we
+    # don't validate against the API here since that'd cost a call and slow create_room.
+    key = (body.openai_api_key or "").strip() or None
+    if key and not (key.startswith("sk-") or key.startswith("sk_")):
+        raise HTTPException(400, "openai_api_key doesn't look like an OpenAI key (expected sk-... prefix)")
+    room, host = await store.create_room(body.host_name, openai_api_key=key)
     return {
         "code": room.code,
         "player_id": host.id,
         "token": host.token,
         "is_host": True,
+        "uses_custom_key": key is not None,
     }
 
 
@@ -201,6 +207,8 @@ async def get_state(code: str, token: str | None = Query(default=None)):
                 "discovered_clues": _player_clues(room, player),
                 "is_host": player.id == room.host_id,
             }
+    # Expose whether the room uses a custom key (but never the key itself)
+    state["uses_custom_key"] = room.openai_api_key is not None
     # Also expose per-player public clue summaries (image + title only) so a UI loading
     # mid-game can render the right panel without replaying the SSE history.
     if room.mystery is not None:
@@ -264,7 +272,7 @@ async def start_game(code: str, body: StartReq):
     cancel = asyncio.Event()
     narrator = asyncio.create_task(_narrate_generation(room, broadcaster, cancel))
     try:
-        mystery = await storyteller.generate_mystery(theme=body.theme)
+        mystery = await storyteller.generate_mystery(theme=body.theme, api_key=room.openai_api_key)
     except Exception as e:
         async with store.lock_for(room.code):
             room.status = "lobby"
@@ -283,7 +291,7 @@ async def start_game(code: str, body: StartReq):
     # avoids duplicates within the same mystery). Mutates mystery.suspects in place.
     portrait_pool.assign(mystery)
     # Match each clue to its best-fit image from the clue image pool. One LLM call total.
-    await storyteller.assign_clue_images(mystery)
+    await storyteller.assign_clue_images(mystery, api_key=room.openai_api_key)
 
     async with store.lock_for(room.code):
         room.mystery = mystery
@@ -320,7 +328,7 @@ async def _stream_opening(room, broadcaster, mystery) -> None:
         except KeyError:
             return
     try:
-        await storyteller.stream_opening_narration(mystery, on_chunk)
+        await storyteller.stream_opening_narration(mystery, on_chunk, api_key=room.openai_api_key)
     except Exception as e:
         print(f"[narration failure] {type(e).__name__}: {e}", flush=True)
         try:

@@ -12,9 +12,19 @@ from .clue_images import pool as clue_image_pool
 
 
 _client: AsyncOpenAI | None = None
+# Cache room-key clients so we're not creating a new AsyncOpenAI per turn. Tiny in number.
+_per_key_clients: dict[str, AsyncOpenAI] = {}
 
 
-def get_client() -> AsyncOpenAI:
+def get_client(api_key: str | None = None) -> AsyncOpenAI:
+    """Return an AsyncOpenAI client, preferring an explicit per-room key when supplied,
+    otherwise falling back to the server's global OPENAI_API_KEY."""
+    if api_key:
+        client = _per_key_clients.get(api_key)
+        if client is None:
+            client = AsyncOpenAI(api_key=api_key)
+            _per_key_clients[api_key] = client
+        return client
     global _client
     if _client is None:
         if not os.environ.get("OPENAI_API_KEY"):
@@ -166,8 +176,8 @@ async def _parse_with_retry(call, model_cls, attempts: int = 2):
     raise RuntimeError(f"LLM returned invalid {model_cls.__name__}: {last_err} (raw: {last_raw[:200]!r})")
 
 
-async def generate_mystery(theme: str | None = None) -> Mystery:
-    client = get_client()
+async def generate_mystery(theme: str | None = None, api_key: str | None = None) -> Mystery:
+    client = get_client(api_key)
     user_content = "Design a brand new mystery now."
     if theme:
         user_content += f" Theme hint from the host: {theme.strip()}"
@@ -197,7 +207,7 @@ async def storyteller_turn(
     if room.mystery is None:
         raise RuntimeError("storyteller_turn called before mystery generation")
 
-    client = get_client()
+    client = get_client(room.openai_api_key)
     context_msg = _storyteller_context_message(room.mystery, sorted(player.discovered_clue_ids))
 
     messages: list[dict] = [
@@ -258,9 +268,9 @@ Constraints:
 - Period-appropriate language matching the setting."""
 
 
-async def stream_opening_narration(mystery: Mystery, on_chunk) -> None:
+async def stream_opening_narration(mystery: Mystery, on_chunk, api_key: str | None = None) -> None:
     """Stream the opening narration token-by-token. on_chunk(text: str) is called per delta."""
-    client = get_client()
+    client = get_client(api_key)
     mystery_view = _mystery_for_llm(mystery)
     # Strip the secrets from what the model sees just in case (it knows better but defense in depth)
     mystery_view.pop("culprit_id", None)
@@ -307,7 +317,7 @@ Return only a JSON object: {"assignments": [{"clue_id": "c1", "image_id": "knife
 The image_id MUST be one from the catalog."""
 
 
-async def assign_clue_images(mystery: Mystery) -> None:
+async def assign_clue_images(mystery: Mystery, api_key: str | None = None) -> None:
     """Use an LLM to map each clue in the mystery to the best-matching image_id from the
     static catalog, then populate clue.image_url + clue.image_title in place."""
     if not clue_image_pool.entries:
@@ -315,7 +325,7 @@ async def assign_clue_images(mystery: Mystery) -> None:
     if not mystery.clues:
         return
 
-    client = get_client()
+    client = get_client(api_key)
     catalog = clue_image_pool.catalog()
     clues_payload = [
         {"clue_id": c.id, "text": c.text}

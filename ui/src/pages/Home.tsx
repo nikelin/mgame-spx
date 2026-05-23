@@ -10,6 +10,7 @@ export function Home({ onJoined }: Props) {
   const [mode, setMode] = useState<"create" | "join">("create");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +19,7 @@ export function Home({ onJoined }: Props) {
     setBusy(true);
     try {
       if (mode === "create") {
-        const r = await api.createRoom(name.trim());
+        const r = await api.createRoom(name.trim(), apiKey.trim() || null);
         onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host, name: name.trim() });
       } else {
         const r = await api.joinRoom(code.trim().toUpperCase(), name.trim());
@@ -70,6 +71,26 @@ export function Home({ onJoined }: Props) {
               placeholder="ABCD"
               maxLength={4}
             />
+          </>
+        )}
+
+        {mode === "create" && (
+          <>
+            <label style={styles.label}>OpenAI API key (optional)</label>
+            <input
+              style={{ ...styles.input, fontFamily: "ui-monospace, monospace", fontSize: 12 }}
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-... (leave blank to use the server's shared key)"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <div style={styles.hint}>
+              If you provide your own key, every LLM call for THIS room (mystery, narration,
+              storyteller turns, clue matching) will use it instead of the server's default.
+              The key is stored only on the room's server-side state.
+            </div>
           </>
         )}
 
@@ -133,4 +154,5 @@ const styles: Record<string, React.CSSProperties> = {
     border: "none", cursor: "not-allowed", fontSize: 15,
   },
   muted: { color: "var(--muted)", marginTop: 24, fontSize: 12, lineHeight: 1.5 },
+  hint: { color: "var(--muted)", marginTop: 6, fontSize: 11, lineHeight: 1.45 },
 };

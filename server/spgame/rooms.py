@@ -49,7 +49,9 @@ class RoomStore:
     def _new_id(prefix: str) -> str:
         return f"{prefix}_{uuid.uuid4().hex[:10]}"
 
-    async def create_room(self, host_name: str) -> tuple[GameRoom, Player]:
+    async def create_room(
+        self, host_name: str, openai_api_key: str | None = None,
+    ) -> tuple[GameRoom, Player]:
         async with self._store_lock:
             # Retry on the unlikely event of a code collision
             for _ in range(8):
@@ -64,7 +66,12 @@ class RoomStore:
                 name=host_name.strip(),
                 token=self._new_token(),
             )
-            room = GameRoom(code=code, host_id=host.id, players={host.id: host})
+            room = GameRoom(
+                code=code,
+                host_id=host.id,
+                players={host.id: host},
+                openai_api_key=openai_api_key,
+            )
             self._rooms[code] = room
             self._locks[code] = asyncio.Lock()
             persistence.save_room(room)
