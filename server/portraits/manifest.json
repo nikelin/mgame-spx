@@ -1,0 +1,170 @@
+[
+  {
+    "id": "M_20s_01",
+    "filename": "M_20s_01.jpg",
+    "gender": "male",
+    "age_range": "20s",
+    "vibe": "earnest reporter with rolled-up sleeves and ink-stained fingers"
+  },
+  {
+    "id": "M_20s_02",
+    "filename": "M_20s_02.jpg",
+    "gender": "male",
+    "age_range": "20s",
+    "vibe": "sharply dressed jazz musician, slicked hair, sly smile"
+  },
+  {
+    "id": "M_30s_03",
+    "filename": "M_30s_03.jpg",
+    "gender": "male",
+    "age_range": "30s",
+    "vibe": "world-weary detective, trench coat collar, three days of stubble"
+  },
+  {
+    "id": "M_30s_04",
+    "filename": "M_30s_04.jpg",
+    "gender": "male",
+    "age_range": "30s",
+    "vibe": "Black bandleader in a tuxedo, charismatic, gold cufflinks"
+  },
+  {
+    "id": "M_40s_05",
+    "filename": "M_40s_05.jpg",
+    "gender": "male",
+    "age_range": "40s",
+    "vibe": "stern shipping magnate, monocle, formal three-piece suit"
+  },
+  {
+    "id": "M_40s_06",
+    "filename": "M_40s_06.jpg",
+    "gender": "male",
+    "age_range": "40s",
+    "vibe": "tired city doctor, wire-frame glasses, loosened tie"
+  },
+  {
+    "id": "M_50s_07",
+    "filename": "M_50s_07.jpg",
+    "gender": "male",
+    "age_range": "50s",
+    "vibe": "weathered fisherman with a thick beard and pipe"
+  },
+  {
+    "id": "M_50s_08",
+    "filename": "M_50s_08.jpg",
+    "gender": "male",
+    "age_range": "50s",
+    "vibe": "dignified Indian academic in a tweed jacket, holding a pocket watch"
+  },
+  {
+    "id": "M_60s_09",
+    "filename": "M_60s_09.jpg",
+    "gender": "male",
+    "age_range": "60s",
+    "vibe": "elderly judge with white hair and a heavy gold chain"
+  },
+  {
+    "id": "M_60s_10",
+    "filename": "M_60s_10.jpg",
+    "gender": "male",
+    "age_range": "60s",
+    "vibe": "Eastern European butler with severe expression, perfect posture"
+  },
+  {
+    "id": "M_30s_11",
+    "filename": "M_30s_11.jpg",
+    "gender": "male",
+    "age_range": "30s",
+    "vibe": "Latin American croupier in a velvet vest, dealer's visor"
+  },
+  {
+    "id": "M_40s_12",
+    "filename": "M_40s_12.jpg",
+    "gender": "male",
+    "age_range": "40s",
+    "vibe": "Japanese restaurateur, immaculate apron, watchful eyes"
+  },
+  {
+    "id": "F_20s_01",
+    "filename": "F_20s_01.jpg",
+    "gender": "female",
+    "age_range": "20s",
+    "vibe": "glamorous chanteuse in a sequined dress, marcel waves, bold lipstick"
+  },
+  {
+    "id": "F_20s_02",
+    "filename": "F_20s_02.jpg",
+    "gender": "female",
+    "age_range": "20s",
+    "vibe": "Black flapper in pearls and a feathered headband, mischievous grin"
+  },
+  {
+    "id": "F_30s_03",
+    "filename": "F_30s_03.jpg",
+    "gender": "female",
+    "age_range": "30s",
+    "vibe": "stern librarian with cat-eye glasses and a tight bun"
+  },
+  {
+    "id": "F_30s_04",
+    "filename": "F_30s_04.jpg",
+    "gender": "female",
+    "age_range": "30s",
+    "vibe": "Latina chemist in a lab coat, intelligent and skeptical"
+  },
+  {
+    "id": "F_40s_05",
+    "filename": "F_40s_05.jpg",
+    "gender": "female",
+    "age_range": "40s",
+    "vibe": "society hostess in fox stole and pearls, looking faintly amused"
+  },
+  {
+    "id": "F_40s_06",
+    "filename": "F_40s_06.jpg",
+    "gender": "female",
+    "age_range": "40s",
+    "vibe": "Indian heiress in an opulent sari, jeweled tiara, regal bearing"
+  },
+  {
+    "id": "F_50s_07",
+    "filename": "F_50s_07.jpg",
+    "gender": "female",
+    "age_range": "50s",
+    "vibe": "matronly housekeeper in a starched apron, kind but knowing eyes"
+  },
+  {
+    "id": "F_50s_08",
+    "filename": "F_50s_08.jpg",
+    "gender": "female",
+    "age_range": "50s",
+    "vibe": "Eastern European widow in heavy mourning veil and dark velvet"
+  },
+  {
+    "id": "F_60s_09",
+    "filename": "F_60s_09.jpg",
+    "gender": "female",
+    "age_range": "60s",
+    "vibe": "elderly Black matriarch with silver hair, embroidered shawl"
+  },
+  {
+    "id": "F_60s_10",
+    "filename": "F_60s_10.jpg",
+    "gender": "female",
+    "age_range": "60s",
+    "vibe": "elderly aristocrat in faded grandeur, antique cameo brooch"
+  },
+  {
+    "id": "F_30s_11",
+    "filename": "F_30s_11.jpg",
+    "gender": "female",
+    "age_range": "30s",
+    "vibe": "Asian aviatrix in leather jacket and goggles pushed back on her head"
+  },
+  {
+    "id": "F_40s_12",
+    "filename": "F_40s_12.jpg",
+    "gender": "female",
+    "age_range": "40s",
+    "vibe": "Eastern European concert pianist, severe black gown, long fingers"
+  }
+]

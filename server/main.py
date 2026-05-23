@@ -7,10 +7,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from spgame import events as ev
 from spgame import scoring, storyteller
 from spgame.llm_api import router as llm_router
+from spgame.portraits import pool as portrait_pool, PORTRAITS_DIR
 from spgame.models import (
     AccuseReq,
     CreateRoomReq,
@@ -19,6 +21,36 @@ from spgame.models import (
     StartReq,
 )
 from spgame.rooms import gc_loop, store
+
+
+GEN_PROGRESS_MESSAGES = [
+    "Lighting the gas lamps in the parlor...",
+    "Choosing the setting and the season...",
+    "Calling the suspects to the smoking room...",
+    "Walking the floor plan, taking notes...",
+    "Hiding the clues just so...",
+    "Coaching the witnesses on their alibis...",
+    "Sealing the verdict in an envelope...",
+    "Almost ready — drawing the final breath...",
+]
+
+
+async def _narrate_generation(room, broadcaster, cancel: asyncio.Event) -> None:
+    """While the LLM is generating, drip atmospheric story events into the SSE stream
+    so the UI doesn't show a frozen 'Generating...' line."""
+    for msg in GEN_PROGRESS_MESSAGES:
+        try:
+            await asyncio.wait_for(cancel.wait(), timeout=2.8)
+            return  # cancel signaled — generation finished
+        except asyncio.TimeoutError:
+            pass
+        try:
+            async with store.lock_for(room.code):
+                if room.status != "playing":
+                    return
+                ev.append_and_publish(room, broadcaster, "story", {"text": msg})
+        except KeyError:
+            return
 
 
 @asynccontextmanager
@@ -48,6 +80,13 @@ app.add_middleware(
 )
 
 app.include_router(llm_router)
+
+if PORTRAITS_DIR.exists():
+    app.mount(
+        "/portraits",
+        StaticFiles(directory=str(PORTRAITS_DIR)),
+        name="portraits",
+    )
 
 
 def _require_room(code: str):
@@ -174,8 +213,13 @@ async def start_game(code: str, body: StartReq):
         if room.status != "lobby":
             raise HTTPException(409, f"game already {room.status}")
         room.status = "playing"  # tentatively, to prevent races
-        ev.append_and_publish(room, broadcaster, "story", {"text": "Generating the mystery..."})
+        ev.append_and_publish(
+            room, broadcaster, "story",
+            {"text": "The storyteller pulls a fresh case file from the shelf..."},
+        )
 
+    cancel = asyncio.Event()
+    narrator = asyncio.create_task(_narrate_generation(room, broadcaster, cancel))
     try:
         mystery = await storyteller.generate_mystery(theme=body.theme)
     except Exception as e:
@@ -185,6 +229,16 @@ async def start_game(code: str, body: StartReq):
         tb = traceback.format_exc()
         print(f"[mystery gen failure]\n{tb}", flush=True)
         raise HTTPException(500, f"mystery generation failed: {type(e).__name__}: {e}")
+    finally:
+        cancel.set()
+        try:
+            await asyncio.wait_for(narrator, timeout=1.0)
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            narrator.cancel()
+
+    # Assign each suspect a portrait from the pre-generated pool (matches gender + age_range,
+    # avoids duplicates within the same mystery). Mutates mystery.suspects in place.
+    portrait_pool.assign(mystery)
 
     async with store.lock_for(room.code):
         room.mystery = mystery
@@ -199,7 +253,42 @@ async def start_game(code: str, body: StartReq):
                 "clue_count": len(mystery.clues),
             },
         )
+        for s in mystery.suspects:
+            if s.image_url:
+                ev.append_and_publish(
+                    room, broadcaster, "suspect_image",
+                    {"suspect_id": s.id, "image_url": s.image_url},
+                )
+    asyncio.create_task(_stream_opening(room, broadcaster, mystery))
     return {"status": "playing", "title": mystery.title}
+
+
+async def _stream_opening(room, broadcaster, mystery) -> None:
+    """Stream the opening narration via SSE (narration_chunk + narration_end events)."""
+    async def on_chunk(text: str) -> None:
+        try:
+            async with store.lock_for(room.code):
+                ev.append_and_publish(room, broadcaster, "narration_chunk", {"text": text})
+        except KeyError:
+            return
+    try:
+        await storyteller.stream_opening_narration(mystery, on_chunk)
+    except Exception as e:
+        print(f"[narration failure] {type(e).__name__}: {e}", flush=True)
+        try:
+            async with store.lock_for(room.code):
+                ev.append_and_publish(
+                    room, broadcaster, "narration_chunk",
+                    {"text": f"\n\n(The storyteller falters: {e})"},
+                )
+        except KeyError:
+            return
+    try:
+        async with store.lock_for(room.code):
+            ev.append_and_publish(room, broadcaster, "narration_end", {})
+    except KeyError:
+        return
+
 
 
 @app.post("/rooms/{code}/message")

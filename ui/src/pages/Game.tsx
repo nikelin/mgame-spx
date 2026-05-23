@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "../App";
-import { api, type RoomState, type Clue } from "../api";
+import { api, resolveAssetUrl, type RoomState, type Clue, type Suspect } from "../api";
 import { subscribe, type ServerEvent } from "../realtime";
 
 interface Props {
@@ -24,6 +24,9 @@ export function Game({ session, onLeave }: Props) {
   const [sending, setSending] = useState(false);
   const [starting, setStarting] = useState(false);
   const [accusing, setAccusing] = useState<string | null>(null);
+  const [portraits, setPortraits] = useState<Record<string, string>>({});
+  const [narration, setNarration] = useState<string>("");
+  const [narrationDone, setNarrationDone] = useState<boolean>(false);
   const chatBottom = useRef<HTMLDivElement>(null);
 
   // Initial snapshot
@@ -57,6 +60,18 @@ export function Game({ session, onLeave }: Props) {
     // Refresh state on big transitions
     if (ev.kind === "start" || ev.kind === "win" || ev.kind === "join") {
       api.getState(session.code, session.token).then(setState).catch(() => {});
+    }
+    if (ev.kind === "suspect_image" && ev.payload.suspect_id && ev.payload.image_url) {
+      setPortraits((prev) => ({ ...prev, [ev.payload.suspect_id]: ev.payload.image_url }));
+      return; // suspect_image isn't a chat-worthy event
+    }
+    if (ev.kind === "narration_chunk") {
+      setNarration((prev) => prev + (ev.payload.text ?? ""));
+      return;
+    }
+    if (ev.kind === "narration_end") {
+      setNarrationDone(true);
+      return;
     }
     setChat((prev) => {
       // De-dupe by seq
@@ -208,13 +223,20 @@ export function Game({ session, onLeave }: Props) {
             onSend={sendMessage}
             chatBottomRef={chatBottom}
             status={state.status}
+            suspects={state.mystery.suspects}
           />
-          <MysteryPanel state={state} />
+          <MysteryPanel
+            state={state}
+            portraits={portraits}
+            narration={narration}
+            narrationDone={narrationDone}
+          />
           <SidePanel
             state={state}
             onAccuse={accuse}
             accusing={accusing}
             isOver={state.status === "over"}
+            portraits={portraits}
           />
         </div>
       )}
@@ -258,13 +280,13 @@ function Lobby({ players, isHost, starting, onStart, code, error }: any) {
   );
 }
 
-function ChatPanel({ lines, input, setInput, sending, onSend, chatBottomRef, status }: any) {
+function ChatPanel({ lines, input, setInput, sending, onSend, chatBottomRef, status, suspects }: any) {
   return (
     <div style={styles.chatPanel}>
       <div style={styles.panelTitle}>Storyteller</div>
       <div style={styles.chatLog}>
         {lines.map((l: ChatLine) => (
-          <ChatLineView key={l.seq} line={l} />
+          <ChatLineView key={l.seq} line={l} suspects={suspects} />
         ))}
         <div ref={chatBottomRef} />
       </div>
@@ -292,7 +314,7 @@ function ChatPanel({ lines, input, setInput, sending, onSend, chatBottomRef, sta
   );
 }
 
-function ChatLineView({ line }: { line: ChatLine }) {
+function ChatLineView({ line, suspects }: { line: ChatLine; suspects: Suspect[] }) {
   const base = styles.chatLine;
   switch (line.role) {
     case "player":
@@ -304,7 +326,8 @@ function ChatLineView({ line }: { line: ChatLine }) {
     case "story":
       return (
         <div style={{ ...base, ...styles.lineStory }}>
-          <i>Storyteller{line.who ? ` (to ${line.who})` : ""}:</i> {line.text}
+          <i>Storyteller{line.who ? ` (to ${line.who})` : ""}:</i>{" "}
+          <HighlightedText text={line.text} suspects={suspects} />
         </div>
       );
     case "system":
@@ -315,7 +338,7 @@ function ChatLineView({ line }: { line: ChatLine }) {
           <div><b>{line.text}</b></div>
           <ul style={{ margin: "6px 0 0 18px" }}>
             {line.clues?.map((c) => (
-              <li key={c.id}>({c.points} pts) {c.text}</li>
+              <li key={c.id}>({c.points} pts) <HighlightedText text={c.text} suspects={suspects} /></li>
             ))}
           </ul>
         </div>
@@ -327,7 +350,75 @@ function ChatLineView({ line }: { line: ChatLine }) {
   }
 }
 
-function MysteryPanel({ state }: { state: RoomState }) {
+// Build a regex matching any of the suspects' names (full, first, last) and wrap matches in
+// highlighted spans. Longer names are tried first so "Vivien Marlowe" wins over "Vivien".
+function HighlightedText({ text, suspects }: { text: string; suspects: Suspect[] }) {
+  const segments = useMemo(() => splitOnSuspects(text, suspects ?? []), [text, suspects]);
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.suspectId ? (
+          <span key={i} style={styles.suspectMention} title={seg.role ?? undefined}>
+            {seg.text}
+          </span>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+interface Segment { text: string; suspectId?: string; role?: string; }
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function splitOnSuspects(text: string, suspects: Suspect[]): Segment[] {
+  if (!suspects.length || !text) return [{ text }];
+  // For each suspect collect full name, first name, last name (de-duped).
+  const tokens: { needle: string; suspectId: string; role: string }[] = [];
+  for (const s of suspects) {
+    const parts = s.name.split(/\s+/).filter(Boolean);
+    const candidates = new Set<string>([s.name, ...parts]);
+    for (const c of candidates) {
+      if (c.length >= 2) tokens.push({ needle: c, suspectId: s.id, role: s.role });
+    }
+  }
+  // Sort by length desc so multi-word names match first
+  tokens.sort((a, b) => b.needle.length - a.needle.length);
+  // Build a single alternation regex with word boundaries
+  const pattern = new RegExp(
+    `(${tokens.map((t) => escapeRegex(t.needle)).join("|")})(?!\\w)`,
+    "g",
+  );
+  // Also require a non-word char (or start) before the match
+  const startBoundary = /(?:^|[^\w])$/;
+  const segs: Segment[] = [];
+  let lastIdx = 0;
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(text)) !== null) {
+    const before = text.slice(lastIdx, m.index);
+    if (!startBoundary.test(before)) {
+      // mid-word match (e.g. "Marlowee") — skip
+      continue;
+    }
+    if (before) segs.push({ text: before });
+    const tok = tokens.find((t) => t.needle === m![0]);
+    segs.push({ text: m[0], suspectId: tok?.suspectId, role: tok?.role });
+    lastIdx = pattern.lastIndex;
+  }
+  if (lastIdx < text.length) segs.push({ text: text.slice(lastIdx) });
+  return segs;
+}
+
+function MysteryPanel({
+  state, portraits, narration, narrationDone,
+}: {
+  state: RoomState; portraits: Record<string, string>;
+  narration: string; narrationDone: boolean;
+}) {
   const m = state.mystery!;
   const youClueIds = new Set(state.you?.discovered_clue_ids ?? []);
   const cluesByScene = useMemo(() => {
@@ -344,15 +435,38 @@ function MysteryPanel({ state }: { state: RoomState }) {
     <div style={styles.midPanel}>
       <div style={styles.panelTitle}>The case</div>
       <p><b>Victim:</b> {m.victim}</p>
+
+      {(narration || !narrationDone) && (
+        <div style={styles.narrationBlock}>
+          <div style={styles.narrationTitle}>
+            Opening narration {narrationDone ? "" : <span style={styles.cursor}>▌</span>}
+          </div>
+          {narration ? (
+            <div style={styles.narrationBody}>
+              <HighlightedText text={narration} suspects={m.suspects} />
+            </div>
+          ) : (
+            <div style={{ color: "var(--muted)", fontStyle: "italic" }}>
+              The storyteller clears their throat…
+            </div>
+          )}
+        </div>
+      )}
       <h4 style={styles.h4}>Suspects</h4>
       <ul style={styles.suspectList}>
-        {m.suspects.map((s) => (
-          <li key={s.id} style={styles.suspectCard}>
-            <div><b>{s.name}</b> — {s.role}</div>
-            <div style={styles.muted}>{s.description}</div>
-            <div style={styles.smallMuted}><i>Alibi:</i> {s.alibi}</div>
-          </li>
-        ))}
+        {m.suspects.map((s) => {
+          const url = portraits[s.id] ?? s.image_url ?? null;
+          return (
+            <li key={s.id} style={{ ...styles.suspectCard, display: "flex", gap: 10 }}>
+              <Portrait url={url} name={s.name} size={64} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div><b>{s.name}</b> — {s.role}</div>
+                <div style={styles.muted}>{s.description}</div>
+                <div style={styles.smallMuted}><i>Alibi:</i> {s.alibi}</div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
       <h4 style={styles.h4}>Scenes</h4>
       <ul style={styles.suspectList}>
@@ -377,7 +491,45 @@ function MysteryPanel({ state }: { state: RoomState }) {
   );
 }
 
-function SidePanel({ state, onAccuse, accusing, isOver }: any) {
+function Portrait({ url, name, size }: { url: string | null; name: string; size: number }) {
+  const initials = name.split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+  const resolved = resolveAssetUrl(url);
+  if (resolved) {
+    return (
+      <img
+        src={resolved}
+        alt={`Portrait of ${name}`}
+        style={{
+          width: size, height: size, objectFit: "cover", borderRadius: 6,
+          flexShrink: 0, background: "#0a1018", border: "1px solid #2d3a52",
+        }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size, height: size, borderRadius: 6, flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "linear-gradient(135deg, #2d3a52 0%, #1a2230 100%)",
+        color: "var(--muted)", fontSize: size * 0.32, fontFamily: "Georgia, serif",
+        border: "1px solid #2d3a52",
+        position: "relative", overflow: "hidden",
+      }}
+      title="Portrait loading…"
+    >
+      <span>{initials}</span>
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: 2,
+        background: "var(--accent)",
+        animation: "portrait-pulse 1.4s ease-in-out infinite",
+        opacity: 0.6,
+      }} />
+    </div>
+  );
+}
+
+function SidePanel({ state, onAccuse, accusing, isOver, portraits }: any) {
   return (
     <div style={styles.sidePanel}>
       <div style={styles.panelTitle}>Leaderboard</div>
@@ -396,20 +548,24 @@ function SidePanel({ state, onAccuse, accusing, isOver }: any) {
             Used {state.you?.accusations_used ?? 0}/3. Wrong = -10. Right = +50 and win.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {state.mystery.suspects.map((s: any) => (
-              <button
-                key={s.id}
-                onClick={() => onAccuse(s.id, s.name)}
-                disabled={(state.you?.accusations_used ?? 0) >= 3 || accusing !== null}
-                style={
-                  (state.you?.accusations_used ?? 0) >= 3 || accusing
-                    ? styles.buttonDisabledSm
-                    : styles.dangerBtn
-                }
-              >
-                {accusing === s.id ? "Accusing…" : `Accuse ${s.name}`}
-              </button>
-            ))}
+            {state.mystery.suspects.map((s: any) => {
+              const disabled = (state.you?.accusations_used ?? 0) >= 3 || accusing !== null;
+              const url = portraits[s.id] ?? s.image_url ?? null;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => onAccuse(s.id, s.name)}
+                  disabled={disabled}
+                  style={{
+                    ...(disabled ? styles.buttonDisabledSm : styles.dangerBtn),
+                    display: "flex", alignItems: "center", gap: 8,
+                  }}
+                >
+                  <Portrait url={url} name={s.name} size={32} />
+                  <span>{accusing === s.id ? "Accusing…" : `Accuse ${s.name}`}</span>
+                </button>
+              );
+            })}
           </div>
         </>
       )}
@@ -507,6 +663,33 @@ const styles: Record<string, React.CSSProperties> = {
   },
   lobby: {
     background: "var(--panel)", borderRadius: 8, padding: 24, maxWidth: 600, margin: "32px auto",
+  },
+  narrationBlock: {
+    background: "var(--panel-2)",
+    border: "1px solid #2d3a52",
+    borderLeft: "3px solid var(--accent)",
+    borderRadius: 6,
+    padding: "12px 14px",
+    margin: "12px 0 16px",
+  },
+  narrationTitle: {
+    fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5,
+    color: "var(--accent)", marginBottom: 8,
+  },
+  narrationBody: {
+    fontFamily: "Georgia, serif",
+    fontSize: 13.5, lineHeight: 1.6,
+    whiteSpace: "pre-wrap",
+    color: "var(--ink)",
+  },
+  cursor: {
+    color: "var(--accent)", animation: "cursor-blink 1s steps(2) infinite",
+  },
+  suspectMention: {
+    color: "var(--accent)",
+    fontWeight: 600,
+    borderBottom: "1px dotted var(--accent)",
+    cursor: "help",
   },
   playerList: { listStyle: "none", padding: 0, margin: "8px 0 24px" },
   playerRow: {

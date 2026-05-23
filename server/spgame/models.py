@@ -13,6 +13,15 @@ class Suspect(BaseModel):
     role: str = Field(description="Their role in the setting, e.g. 'the butler', 'the heiress'")
     description: str = Field(description="One-sentence physical and behavioural sketch")
     alibi: str = Field(description="What they claim to have been doing during the crime")
+    gender: Literal["male", "female"] = Field(
+        description="Suspect's apparent gender. Used to match a portrait from the pool."
+    )
+    age_range: Literal["20s", "30s", "40s", "50s", "60s"] = Field(
+        description="Approximate age bracket. Used to match a portrait from the pool."
+    )
+    image_url: str | None = Field(
+        default=None, description="Relative portrait path (e.g. /portraits/F_30s_01.jpg). Assigned at mystery start."
+    )
 
 
 class Scene(BaseModel):
@@ -32,14 +41,15 @@ class Clue(BaseModel):
 
 
 class Mystery(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Use `extra="ignore"` so harmless extra fields from the model don't kill validation
+    model_config = ConfigDict(extra="ignore")
 
     title: str
     setting: str = Field(description="Time and place, 1-2 sentences setting the mood")
     victim: str = Field(description="Who was killed, and how")
-    suspects: list[Suspect] = Field(min_length=4, max_length=7)
-    scenes: list[Scene] = Field(min_length=3, max_length=5)
-    clues: list[Clue] = Field(min_length=8, max_length=14)
+    suspects: list[Suspect] = Field(min_length=3, max_length=8)
+    scenes: list[Scene] = Field(min_length=2, max_length=6)
+    clues: list[Clue] = Field(min_length=4, max_length=16)
     culprit_id: str = Field(description="ID of the suspect who did it. Must match one of suspects[].id")
     motive: str = Field(description="The culprit's motive, logically connected to the clues")
 
@@ -65,7 +75,10 @@ class Player(BaseModel):
 class Event(BaseModel):
     seq: int
     ts: float
-    kind: Literal["join", "start", "clue", "message", "accuse", "win", "story", "leave"]
+    kind: Literal[
+        "join", "start", "clue", "message", "accuse", "win", "story", "leave",
+        "suspect_image", "narration_chunk", "narration_end",
+    ]
     payload: dict
     private_to: str | None = None
 
@@ -141,7 +154,9 @@ class StartReq(BaseModel):
 class StorytellerResult(BaseModel):
     """Schema the storyteller LLM returns each turn."""
 
-    model_config = ConfigDict(extra="forbid")
+    # Allow extra keys (the model sometimes adds reasoning fields); coerce numeric/string
+    # mismatches rather than failing the turn.
+    model_config = ConfigDict(extra="ignore")
 
     reply: str = Field(description="In-character storyteller reply addressed to the player. 1-4 sentences.")
     revealed_clue_ids: list[str] = Field(

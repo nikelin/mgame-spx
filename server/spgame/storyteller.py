@@ -7,7 +7,7 @@ import os
 from openai import AsyncOpenAI
 from pydantic import ValidationError
 
-from .models import GameRoom, Mystery, Player, StorytellerResult
+from .models import GameRoom, Mystery, Player, StorytellerResult, Suspect
 
 
 _client: AsyncOpenAI | None = None
@@ -26,7 +26,14 @@ def get_client() -> AsyncOpenAI:
 
 
 MYSTERY_MODEL = os.environ.get("SPGAME_MYSTERY_MODEL", "gpt-4o")
-STORYTELLER_MODEL = os.environ.get("SPGAME_STORYTELLER_MODEL", "gpt-4o-mini")
+# gpt-4o is more reliable than gpt-4o-mini at returning the StorytellerResult schema in
+# json_object mode; mini has been observed dropping fields or returning singular forms.
+STORYTELLER_MODEL = os.environ.get("SPGAME_STORYTELLER_MODEL", "gpt-4o")
+# Tried in order; first successful response wins. Different OpenAI accounts have access
+# to different image models, so we fall back rather than hard-pinning.
+IMAGE_MODELS = [m for m in os.environ.get(
+    "SPGAME_IMAGE_MODELS", "gpt-image-1,dall-e-2"
+).split(",") if m.strip()]
 
 
 # Schema printed into the prompt so the model knows the JSON shape to return.
@@ -36,7 +43,15 @@ MYSTERY_JSON_SCHEMA = """{
   "setting": "string (1-2 sentences setting time + place)",
   "victim": "string (who was killed and how)",
   "suspects": [
-    {"id": "s1", "name": "string", "role": "string", "description": "string", "alibi": "string"}
+    {
+      "id": "s1",
+      "name": "string",
+      "role": "string",
+      "description": "string",
+      "alibi": "string",
+      "gender": "male | female (required — picks the suspect's portrait)",
+      "age_range": "20s | 30s | 40s | 50s | 60s (required — picks the suspect's portrait)"
+    }
   ],
   "scenes": [
     {"id": "sc1", "name": "string", "description": "string"}
@@ -55,6 +70,7 @@ Design a tight, internally consistent murder mystery. Constraints:
 
 - Setting: pick something atmospheric and varied (Art Deco hotel, transatlantic liner, rural manor, 1920s newsroom, etc.). Avoid stale tropes.
 - 4-6 suspects with distinct roles, personalities, and alibis. Give each a memorable name. IDs s1, s2, s3, ...
+- Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages across the cast.
 - 3-5 scenes (locations). IDs sc1, sc2, sc3, ...
 - 8-12 total clues, each worth 5-25 points based on how revealing they are. IDs c1, c2, c3, ... Smaller clues are atmospheric or eliminate suspects; bigger clues directly implicate someone.
 - Exactly ONE culprit. The motive must be logically reachable from at least 2-3 of the clues.
@@ -104,9 +120,21 @@ Return ONLY valid JSON matching this shape:
 Do not include any prose outside the JSON object."""
 
 
+def _mystery_for_llm(mystery: Mystery) -> dict:
+    """Serialize a mystery for prompt inclusion, stripping bulky fields the LLM doesn't need.
+
+    Critically: image_url holds a base64 JPEG (~100-200KB) which would blow the context window
+    if we left it in the prompt.
+    """
+    d = mystery.model_dump()
+    for s in d.get("suspects", []):
+        s.pop("image_url", None)
+    return d
+
+
 def _storyteller_context_message(mystery: Mystery, player_discovered: list[str]) -> str:
     """The mystery payload is sent as a system message so it's eligible for caching across turns."""
-    mystery_json = mystery.model_dump_json(indent=2)
+    mystery_json = json.dumps(_mystery_for_llm(mystery), indent=2)
     return (
         "Here is the full mystery definition. The culprit_id and motive are SECRET — "
         "you know them but must not reveal them.\n\n"
@@ -119,18 +147,21 @@ def _storyteller_context_message(mystery: Mystery, player_discovered: list[str])
 async def _parse_with_retry(call, model_cls, attempts: int = 2):
     """Call the LLM and validate against a Pydantic model, retrying once on validation failure."""
     last_err: Exception | None = None
+    last_raw: str = ""
     for i in range(attempts):
         raw = await call()
+        last_raw = raw
         try:
             return model_cls.model_validate_json(raw)
         except ValidationError as e:
             last_err = e
-            # On retry, the prompt already asked for the shape; only retry once
+            print(f"[parse-retry] {model_cls.__name__} validation failed attempt {i + 1}: {e}\nraw: {raw[:500]}", flush=True)
             continue
         except json.JSONDecodeError as e:
             last_err = e
+            print(f"[parse-retry] {model_cls.__name__} json decode failed attempt {i + 1}: {e}\nraw: {raw[:500]}", flush=True)
             continue
-    raise RuntimeError(f"LLM returned invalid {model_cls.__name__}: {last_err}")
+    raise RuntimeError(f"LLM returned invalid {model_cls.__name__}: {last_err} (raw: {last_raw[:200]!r})")
 
 
 async def generate_mystery(theme: str | None = None) -> Mystery:
@@ -147,7 +178,8 @@ async def generate_mystery(theme: str | None = None) -> Mystery:
                 {"role": "user", "content": user_content},
             ],
             response_format={"type": "json_object"},
-            temperature=0.9,
+            temperature=0.8,
+            max_tokens=4000,
         )
         return resp.choices[0].message.content or "{}"
 
@@ -178,8 +210,8 @@ async def storyteller_turn(
             model=STORYTELLER_MODEL,
             messages=messages,
             response_format={"type": "json_object"},
-            temperature=0.8,
-            max_tokens=600,
+            temperature=0.7,
+            max_tokens=800,
         )
         return resp.choices[0].message.content or "{}"
 
@@ -187,10 +219,124 @@ async def storyteller_turn(
         return await asyncio.wait_for(
             _parse_with_retry(_call, StorytellerResult), timeout=30.0
         )
-    except Exception:
+    except Exception as e:
+        import traceback
+        print(
+            f"[storyteller turn failure for player={player.name}] {type(e).__name__}: {e}\n"
+            f"{traceback.format_exc()}",
+            flush=True,
+        )
         # Last-resort fallback so a flaky model call doesn't deadlock the game
         return StorytellerResult(
-            reply="(The storyteller pauses, gathering their thoughts...) Try asking again.",
+            reply=f"(The storyteller pauses, gathering their thoughts... [{type(e).__name__}]) Try asking again.",
             revealed_clue_ids=[],
             story_progress_bonus=0,
         )
+
+
+NARRATION_SYSTEM = """You are the storyteller opening a noir mystery game. Given the full mystery details,
+write a 500-600 word atmospheric opening narration addressed to the players, as the game master
+addressing a group of detectives gathered at the scene.
+
+Cover, in order:
+
+1. The setting and mood (when and where, the weather, the ambient details).
+2. The victim and how/when/where the body was found.
+3. Each suspect by NAME — their role, their known whereabouts at the time of the crime, and the
+   claimed alibi. Use their FULL NAME the first time you mention them in the narration.
+4. The connections, tensions, or known relationships between characters.
+5. End with a single haunting sentence inviting the players to begin investigating.
+
+Constraints:
+- 500-600 words. Tight prose, second-person address ("you find yourself..."), evocative noir voice.
+- Do NOT reveal who the culprit is, and do NOT reveal the motive directly.
+- Refer to every suspect by name at least once. Use exactly the names provided in the mystery JSON;
+  do not invent new characters or aliases.
+- No markdown, no headers, no bullet points — just flowing prose paragraphs.
+- Period-appropriate language matching the setting."""
+
+
+async def stream_opening_narration(mystery: Mystery, on_chunk) -> None:
+    """Stream the opening narration token-by-token. on_chunk(text: str) is called per delta."""
+    client = get_client()
+    mystery_view = _mystery_for_llm(mystery)
+    # Strip the secrets from what the model sees just in case (it knows better but defense in depth)
+    mystery_view.pop("culprit_id", None)
+    mystery_view.pop("motive", None)
+    user_content = (
+        "Open the case with a 500-600 word noir narration. Here is the full mystery context:\n\n"
+        f"```json\n{json.dumps(mystery_view, indent=2)}\n```"
+    )
+
+    async def _run() -> None:
+        stream = await client.chat.completions.create(
+            model=STORYTELLER_MODEL,
+            messages=[
+                {"role": "system", "content": NARRATION_SYSTEM},
+                {"role": "user", "content": user_content},
+            ],
+            stream=True,
+            max_tokens=1500,
+            temperature=0.8,
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content if chunk.choices else None
+            if delta:
+                await on_chunk(delta)
+
+    await asyncio.wait_for(_run(), timeout=90.0)
+
+
+async def generate_suspect_portrait(suspect: Suspect, setting: str) -> str:
+    """Generate a portrait, trying each model in IMAGE_MODELS in turn. Returns either a remote
+    URL or a `data:image/...;base64,...` URL depending on which model responded."""
+    client = get_client()
+    prompt = (
+        f"Period character portrait of {suspect.name}, {suspect.role}. "
+        f"{suspect.description}. Setting context: {setting}. "
+        f"Style: moody noir illustration, painterly, dramatic chiaroscuro lighting, "
+        f"head-and-shoulders framing, period-accurate clothing, neutral background. "
+        f"Do not include any text, letters, or signatures in the image."
+    )
+
+    last_err: Exception | None = None
+    for model in IMAGE_MODELS:
+        try:
+            if model == "gpt-image-1":
+                resp = await asyncio.wait_for(
+                    client.images.generate(
+                        model="gpt-image-1",
+                        prompt=prompt,
+                        size="1024x1024",
+                        quality="low",
+                        output_format="jpeg",
+                        output_compression=70,
+                        n=1,
+                    ),
+                    timeout=90.0,
+                )
+                b64 = resp.data[0].b64_json
+                if b64:
+                    return f"data:image/jpeg;base64,{b64}"
+                raise RuntimeError("gpt-image-1 returned no b64_json")
+            else:
+                # dall-e-2 / dall-e-3 path — returns a temporary URL
+                resp = await asyncio.wait_for(
+                    client.images.generate(
+                        model=model,
+                        prompt=prompt,
+                        size="512x512" if model == "dall-e-2" else "1024x1024",
+                        n=1,
+                    ),
+                    timeout=90.0,
+                )
+                url = resp.data[0].url
+                if url:
+                    return url
+                raise RuntimeError(f"{model} returned no URL")
+        except Exception as e:
+            last_err = e
+            print(f"[portrait model {model} unavailable] {type(e).__name__}: {e}", flush=True)
+            continue
+
+    raise RuntimeError(f"all portrait models failed; last error: {last_err}")

@@ -19,6 +19,19 @@ export async function getApiBase(): Promise<string> {
   return _apiBase;
 }
 
+// Synchronous accessor for already-cached apiBase. Used to build asset URLs (e.g. portrait
+// paths) inside React renders — apiBase is loaded on first API call so by the time the
+// game UI renders portraits, it's already cached.
+export function apiBaseSync(): string {
+  return _apiBase ?? "";
+}
+
+export function resolveAssetUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (/^(https?:|data:)/i.test(url)) return url;
+  return apiBaseSync() + url;
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const base = await getApiBase();
   const res = await fetch(`${base}${path}`, {
@@ -39,7 +52,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json();
 }
 
-export interface Suspect { id: string; name: string; role: string; description: string; alibi: string; }
+export interface Suspect {
+  id: string; name: string; role: string; description: string; alibi: string;
+  image_url?: string | null;
+}
 export interface Scene { id: string; name: string; description: string; }
 export interface ClueMeta { id: string; scene_id: string; points: number; }
 export interface Clue { id: string; text: string; points: number; scene_id: string; }
