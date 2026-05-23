@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.spx/
+*.pyc
+*.egg-info/
+node_modules/
+dist/
+.env
+.DS_Store
+.idea/
+uv.lock
+*.tsbuildinfo

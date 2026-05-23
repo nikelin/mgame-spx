@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>spgame — a collaborative mystery</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #11161e;
+        --panel: #1a2230;
+        --panel-2: #232c3d;
+        --ink: #e6e6e6;
+        --muted: #8a96a8;
+        --accent: #d4a04e;
+        --danger: #e16b6b;
+        --good: #6fc59c;
+      }
+      * { box-sizing: border-box; }
+      html, body, #root { height: 100%; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-size: 14px;
+      }
+      a { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
