@@ -35,8 +35,17 @@ def _path_for(code: str) -> Path:
     return _root() / f"{code.upper()}.json"
 
 
-# Fields we drop before writing — they're either runtime-only or unbounded growth.
-EXCLUDED_FIELDS: set[str] = {"events"}
+# Fields we drop before writing — we keep events now (so the chat panel hydrates on
+# reload) but filter the bulky ones at save time below. EXCLUDED_FIELDS stays empty for
+# now; if anything truly runtime-only is added later, exclude it here.
+EXCLUDED_FIELDS: set[str] = set()
+
+# Event kinds NOT worth persisting (chatty and redundant — narration is also stored on
+# room.narration; suspect_image is also stored on room.mystery.suspects[].image_url).
+PERSIST_SKIP_KINDS: set[str] = {"narration_chunk", "narration_end", "suspect_image"}
+
+# Cap the persisted event log so very long games don't grow the JSON file unbounded.
+MAX_PERSISTED_EVENTS = 500
 
 
 def save_room(room: GameRoom) -> None:
@@ -45,6 +54,13 @@ def save_room(room: GameRoom) -> None:
         root = _root()
         root.mkdir(parents=True, exist_ok=True)
         data = room.model_dump(mode="json", exclude=EXCLUDED_FIELDS)
+        # Trim events: drop bulky kinds (narration_chunk etc.) and cap the tail length so
+        # the JSON file stays bounded even across very long games.
+        evs = data.get("events") or []
+        evs = [e for e in evs if e.get("kind") not in PERSIST_SKIP_KINDS]
+        if len(evs) > MAX_PERSISTED_EVENTS:
+            evs = evs[-MAX_PERSISTED_EVENTS:]
+        data["events"] = evs
         # Atomic write: tmp file in same dir, then os.replace
         fd, tmp_path = tempfile.mkstemp(prefix=f".{room.code}.", suffix=".json.tmp", dir=root)
         try:

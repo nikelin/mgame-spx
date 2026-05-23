@@ -68,6 +68,12 @@ export function Game({ session, onLeave }: Props) {
           setPortraits((prev) => ({ ...map, ...prev }));
         }
         if (s.accusation_log) setAccusations(s.accusation_log);
+        // Replay the historical chat events so the chat panel rebuilds after reload.
+        // handleEvent already dedupes by seq, so when the live SSE stream catches up we
+        // won't show anything twice.
+        if (s.chat_events) {
+          for (const e of s.chat_events) handleEvent(e as ServerEvent, true);
+        }
       })
       .catch((e) => { if (!cancelled) setError(String(e.message ?? e)); });
     return () => { cancelled = true; };
@@ -97,9 +103,10 @@ export function Game({ session, onLeave }: Props) {
     }
   }, [chat.length]);
 
-  function handleEvent(ev: ServerEvent) {
-    // Refresh state on big transitions
-    if (ev.kind === "start" || ev.kind === "win" || ev.kind === "join") {
+  function handleEvent(ev: ServerEvent, isHistorical: boolean = false) {
+    // Refresh state on big transitions — but skip during replay; the snapshot we're
+    // replaying from is already the freshest state we have.
+    if (!isHistorical && (ev.kind === "start" || ev.kind === "win" || ev.kind === "join")) {
       api.getState(session.code, session.token).then(setState).catch(() => {});
     }
     if (ev.kind === "suspect_image" && ev.payload.suspect_id && ev.payload.image_url) {
@@ -278,6 +285,8 @@ export function Game({ session, onLeave }: Props) {
         <div style={styles.headerRight}>
           <div>Room <code style={styles.roomCode}>{state.code}</code></div>
           <div style={styles.status}>Status: <b>{state.status}</b></div>
+          <HeaderShareButton code={state.code} kind="player" />
+          <HeaderShareButton code={state.code} kind="llm" />
           <button onClick={onLeave} style={styles.smallBtn}>Leave</button>
         </div>
       </header>
@@ -367,6 +376,42 @@ function Lobby({ players, isHost, starting, onStart, code, error }: any) {
       )}
       {error && <div style={styles.errorBar}>{error}</div>}
     </div>
+  );
+}
+
+// Compact "copy URL" button used in the page header so users can grab the player or LLM
+// invite link without scrolling back to the lobby. The two-kind props keep styling unified.
+function HeaderShareButton({ code, kind }: { code: string; kind: "player" | "llm" }) {
+  const [copied, setCopied] = useState(false);
+  const url = useMemo(() => {
+    if (kind === "player") {
+      const u = new URL(window.location.href);
+      u.searchParams.set("room", code);
+      return u.toString();
+    }
+    return `${apiBaseSync()}/llm?room=${code}`;
+  }, [code, kind]);
+
+  async function copy() {
+    try { await navigator.clipboard.writeText(url); }
+    catch {
+      const ta = document.createElement("textarea");
+      ta.value = url; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } finally { ta.remove(); }
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  }
+
+  const label = kind === "llm" ? "LLM link" : "Player link";
+  return (
+    <button
+      onClick={copy}
+      style={kind === "llm" ? styles.headerShareLlm : styles.headerSharePlayer}
+      title={url}
+    >
+      {copied ? "Copied ✓" : `Copy ${label}`}
+    </button>
   );
 }
 
@@ -963,6 +1008,16 @@ const styles: Record<string, React.CSSProperties> = {
   smallBtn: {
     padding: "6px 10px", borderRadius: 4, background: "#2d3a52", color: "var(--ink)",
     border: "none", cursor: "pointer", fontSize: 12,
+  },
+  headerSharePlayer: {
+    padding: "6px 10px", borderRadius: 4,
+    background: "#2d3a52", color: "var(--ink)",
+    border: "none", cursor: "pointer", fontSize: 12,
+  },
+  headerShareLlm: {
+    padding: "6px 10px", borderRadius: 4,
+    background: "rgba(212,160,78,0.18)", color: "var(--accent)",
+    border: "1px solid var(--accent)", cursor: "pointer", fontSize: 12, fontWeight: 600,
   },
   grid: {
     display: "grid", gridTemplateColumns: "1.2fr 1.4fr 1fr",

@@ -182,6 +182,7 @@ async def join_room(code: str, body: JoinRoomReq):
             room, broadcaster, "join",
             {"player_id": player.id, "name": player.name, "leaderboard": scoring.leaderboard(room)},
         )
+        store.persist(room)
     return {
         "code": room.code,
         "player_id": player.id,
@@ -233,6 +234,23 @@ async def get_state(code: str, token: str | None = Query(default=None)):
     state["narration"] = room.narration
     state["narration_done"] = room.narration_done
     state["accusation_log"] = list(room.accusation_log)
+    # Replay the chat-relevant events to this client so the chat panel hydrates on reload.
+    # Filter:
+    #   - privacy: skip events targeted at a different player
+    #   - kind: skip events already covered by other state fields (narration_chunk =
+    #     state.narration; suspect_image = state.mystery.suspects[].image_url)
+    me_id = state.get("you", {}).get("id") if isinstance(state.get("you"), dict) else None
+    SKIP_KINDS = {"narration_chunk", "narration_end", "suspect_image"}
+    chat_events: list[dict] = []
+    for e in room.events:
+        if e.kind in SKIP_KINDS:
+            continue
+        if e.private_to is not None and e.private_to != me_id:
+            continue
+        chat_events.append({
+            "seq": e.seq, "ts": e.ts, "kind": e.kind, "payload": e.payload,
+        })
+    state["chat_events"] = chat_events
     return state
 
 

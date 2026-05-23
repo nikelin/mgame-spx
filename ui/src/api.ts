@@ -103,6 +103,13 @@ export interface AccusationLogEntry {
   correct: boolean;
 }
 
+export interface ServerEventSnapshot {
+  seq: number;
+  ts: number;
+  kind: string;
+  payload: Record<string, any>;
+}
+
 export interface RoomState {
   code: string;
   status: "lobby" | "playing" | "over";
@@ -116,6 +123,9 @@ export interface RoomState {
   narration?: string;
   narration_done?: boolean;
   accusation_log?: AccusationLogEntry[];
+  // Historical chat events visible to this player (private clues only to the discoverer).
+  // The UI replays these through its event handler on hydrate to rebuild the chat panel.
+  chat_events?: ServerEventSnapshot[];
 }
 
 export const api = {
