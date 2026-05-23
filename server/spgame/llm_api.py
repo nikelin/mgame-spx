@@ -163,13 +163,10 @@ curl -s '{base}/llm/poll?token={token}&since=0&wait=20'
 """
 
 
-# Per-LLM-player transcript (lives next to the server's main transcript map but keyed here so
-# this router doesn't depend on the FastAPI app object).
-_llm_transcripts: dict[str, dict[str, list[dict]]] = {}
-
-
-def _transcript(code: str, player_id: str) -> list[dict]:
-    return _llm_transcripts.setdefault(code, {}).setdefault(player_id, [])
+def _transcript(room: GameRoom, player_id: str) -> list[dict]:
+    """Storyteller transcript shared with the human-UI path — lives on the room so it
+    persists across reloads alongside the rest of the game state."""
+    return room.transcripts.setdefault(player_id, [])
 
 
 # -------- Endpoints --------
@@ -231,7 +228,7 @@ async def llm_say(request: Request, body: dict) -> Response:
         raise HTTPException(409, f"game is {room.status}")
 
     broadcaster = ev.broadcaster_for(room.code)
-    transcript = _transcript(room.code, player.id)
+    transcript = _transcript(room, player.id)
     last_seen = int(body.get("since") or 0)
 
     async with store.lock_for(room.code):
@@ -279,6 +276,7 @@ async def llm_say(request: Request, body: dict) -> Response:
                     "leaderboard": scoring.leaderboard(room),
                 },
             )
+        store.persist(room)
 
         new_events = _recent_public_events(room, last_seen, exclude_player=player.id)
 
@@ -340,6 +338,7 @@ async def llm_accuse(request: Request, body: dict) -> Response:
             ev.append_and_publish(room, broadcaster, "win", result)
         else:
             ev.append_and_publish(room, broadcaster, "accuse", result)
+        store.persist(room)
 
     base = _base_url(request)
     if result["status"] == "correct":

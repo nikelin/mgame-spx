@@ -94,6 +94,15 @@ export interface PlayerView {
   is_host: boolean;
 }
 
+export interface AccusationLogEntry {
+  ts: number;
+  player_id: string;
+  player_name: string;
+  suspect_id: string;
+  suspect_name: string;
+  correct: boolean;
+}
+
 export interface RoomState {
   code: string;
   status: "lobby" | "playing" | "over";
@@ -104,6 +113,9 @@ export interface RoomState {
   next_seq: number;
   you?: PlayerView;
   finds_by_player?: Record<string, ClueSummary[]>;
+  narration?: string;
+  narration_done?: boolean;
+  accusation_log?: AccusationLogEntry[];
 }
 
 export const api = {
@@ -111,6 +123,8 @@ export const api = {
     request<{ code: string; player_id: string; token: string; is_host: boolean }>(
       "POST", "/rooms", { host_name },
     ),
+  // Join is idempotent for the same name (case-insensitive): a returning player gets
+  // back their existing player_id and a (re-issued) token. Acts as a resume entry point.
   joinRoom: (code: string, name: string) =>
     request<{ code: string; player_id: string; token: string; is_host: boolean }>(
       "POST", `/rooms/${code}/join`, { name },

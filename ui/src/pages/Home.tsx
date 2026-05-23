@@ -19,10 +19,10 @@ export function Home({ onJoined }: Props) {
     try {
       if (mode === "create") {
         const r = await api.createRoom(name.trim());
-        onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host });
+        onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host, name: name.trim() });
       } else {
         const r = await api.joinRoom(code.trim().toUpperCase(), name.trim());
-        onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host });
+        onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host, name: name.trim() });
       }
     } catch (e: any) {
       setError(e.message ?? String(e));

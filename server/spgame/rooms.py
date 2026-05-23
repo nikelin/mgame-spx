@@ -7,6 +7,7 @@ import time
 import uuid
 from typing import Iterable
 
+from . import persistence
 from .models import GameRoom, Player
 
 
@@ -16,12 +17,25 @@ ROOM_IDLE_TIMEOUT_S = 30 * 60  # GC abandoned rooms after 30 minutes idle
 
 
 class RoomStore:
-    """In-memory store of GameRoom objects with per-room asyncio locks."""
+    """In-memory store of GameRoom objects with per-room asyncio locks. Backed by JSON-per-room
+    persistence on SPX local-fs so rooms survive container restarts."""
 
     def __init__(self) -> None:
         self._rooms: dict[str, GameRoom] = {}
         self._locks: dict[str, asyncio.Lock] = {}
         self._store_lock = asyncio.Lock()
+
+    def hydrate_from_disk(self) -> int:
+        """Load all persisted rooms into memory. Call once at startup."""
+        loaded = persistence.load_all_rooms()
+        for code, room in loaded.items():
+            self._rooms[code] = room
+            self._locks[code] = asyncio.Lock()
+        return len(loaded)
+
+    def persist(self, room: GameRoom) -> None:
+        """Atomic-write this room's JSON snapshot. Safe to call under the room lock."""
+        persistence.save_room(room)
 
     @staticmethod
     def _new_code() -> str:
@@ -53,6 +67,7 @@ class RoomStore:
             room = GameRoom(code=code, host_id=host.id, players={host.id: host})
             self._rooms[code] = room
             self._locks[code] = asyncio.Lock()
+            persistence.save_room(room)
             return room, host
 
     async def join_room(self, code: str, name: str) -> tuple[GameRoom, Player]:
@@ -72,6 +87,7 @@ class RoomStore:
             )
             room.players[player.id] = player
             room.last_activity = time.time()
+            persistence.save_room(room)
             return room, player
 
     def get(self, code: str) -> GameRoom | None:
@@ -100,6 +116,7 @@ class RoomStore:
             for code in dead:
                 self._rooms.pop(code, None)
                 self._locks.pop(code, None)
+                persistence.delete_room(code)
             return len(dead)
 
 

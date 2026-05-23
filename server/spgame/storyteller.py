@@ -71,6 +71,7 @@ Design a tight, internally consistent murder mystery. Constraints:
 
 - Setting: pick something atmospheric and varied (Art Deco hotel, transatlantic liner, rural manor, 1920s newsroom, etc.). Avoid stale tropes.
 - 4-6 suspects with distinct roles, personalities, and alibis. Give each a memorable name. IDs s1, s2, s3, ...
+- **Naming constraint:** every suspect's FULL NAME must include the token "Armin" somewhere — as the first name, middle name, last name, or part of a compound name. Examples: "Armin Holcroft", "Vivien Armin Marlowe", "Doctor Armin Khoury", "Mr. Bellweather-Armin", "Sir Reginald Armin", "Mrs. Armina Boyle". Vary the placement across the cast so it doesn't feel formulaic.
 - Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages across the cast.
 - 3-5 scenes (locations). IDs sc1, sc2, sc3, ...
 - 8-12 total clues, each worth 5-25 points based on how revealing they are. IDs c1, c2, c3, ... Smaller clues are atmospheric or eliminate suspects; bigger clues directly implicate someone.

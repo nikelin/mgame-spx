@@ -106,6 +106,16 @@ class GameRoom(BaseModel):
     winner_id: str | None = None
     created_at: float = Field(default_factory=time.time)
     last_activity: float = Field(default_factory=time.time)
+    # Persisted-game-state fields — survive across reloads when SPX local-fs is mounted.
+    # Per-player storyteller transcript: player_id → list of {role, content} chat messages.
+    transcripts: dict[str, list[dict]] = Field(default_factory=dict)
+    # Streamed opening narration, accumulated as chunks arrive. Once narration_done is True
+    # the full text is replayed to reconnecting clients via /state.
+    narration: str = ""
+    narration_done: bool = False
+    # Ordered log of every accusation attempt so the UI can show "Accused N times by X, Y"
+    # under each suspect. Each entry: {ts, player_id, player_name, suspect_id, suspect_name, correct}.
+    accusation_log: list[dict] = Field(default_factory=list)
 
     def public_state(self) -> dict:
         return {

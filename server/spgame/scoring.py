@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 from .models import GameRoom, Player
 
 WRONG_ACCUSATION_PENALTY = 10
@@ -43,6 +45,16 @@ def resolve_accusation(room: GameRoom, player: Player, suspect_id: str) -> dict:
     correct = (suspect_id == room.mystery.culprit_id)
 
     suspect_name = next((s.name for s in room.mystery.suspects if s.id == suspect_id), suspect_id)
+
+    # Append to the room-level accusation log so the UI can render per-suspect attribution.
+    room.accusation_log.append({
+        "ts": time.time(),
+        "player_id": player.id,
+        "player_name": player.name,
+        "suspect_id": suspect_id,
+        "suspect_name": suspect_name,
+        "correct": correct,
+    })
 
     if correct:
         player.points += CORRECT_ACCUSATION_BONUS

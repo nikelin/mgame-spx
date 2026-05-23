@@ -56,6 +56,17 @@ async def _narrate_generation(room, broadcaster, cancel: asyncio.Event) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Hydrate persisted rooms before serving any requests. Survives container restarts
+    # and `spx run` redeploys via SPX local-fs at $SPX_LOCAL_FS (/data/local-fs on SPX).
+    from spgame import persistence
+    print(
+        f"[startup] SPX_LOCAL_FS={os.environ.get('SPX_LOCAL_FS', '<unset>')}, "
+        f"persistence root={persistence.root_path()}, "
+        f"root exists={os.path.isdir(persistence.root_path())}",
+        flush=True,
+    )
+    restored = store.hydrate_from_disk()
+    print(f"[startup] hydrated {restored} room(s) from local-fs", flush=True)
     gc_task = asyncio.create_task(gc_loop())
     try:
         yield
@@ -111,12 +122,9 @@ def _require_player(room, token: str):
     return player
 
 
-# Per-player transcript cache (not in the GameRoom model so we don't pollute /state with it)
-_transcripts: dict[str, dict[str, list[dict]]] = {}
-
-
-def _get_transcript(room_code: str, player_id: str) -> list[dict]:
-    return _transcripts.setdefault(room_code, {}).setdefault(player_id, [])
+def _get_transcript(room, player_id: str) -> list[dict]:
+    """Per-player storyteller transcript — lives on the GameRoom so it persists with the room."""
+    return room.transcripts.setdefault(player_id, [])
 
 
 # -------- Endpoints --------
@@ -212,6 +220,11 @@ async def get_state(code: str, token: str | None = Query(default=None)):
                     "points": c.points,
                 })
         state["finds_by_player"] = finds
+    # Hydrate narration so a reloading UI gets the opening narration without waiting for
+    # streaming events that already happened.
+    state["narration"] = room.narration
+    state["narration_done"] = room.narration_done
+    state["accusation_log"] = list(room.accusation_log)
     return state
 
 
@@ -291,15 +304,18 @@ async def start_game(code: str, body: StartReq):
                     room, broadcaster, "suspect_image",
                     {"suspect_id": s.id, "image_url": s.image_url},
                 )
+        store.persist(room)
     asyncio.create_task(_stream_opening(room, broadcaster, mystery))
     return {"status": "playing", "title": mystery.title}
 
 
 async def _stream_opening(room, broadcaster, mystery) -> None:
-    """Stream the opening narration via SSE (narration_chunk + narration_end events)."""
+    """Stream the opening narration via SSE (narration_chunk + narration_end events).
+    Accumulates the chunks onto room.narration so reloads can replay the full text via /state."""
     async def on_chunk(text: str) -> None:
         try:
             async with store.lock_for(room.code):
+                room.narration += text
                 ev.append_and_publish(room, broadcaster, "narration_chunk", {"text": text})
         except KeyError:
             return
@@ -309,15 +325,17 @@ async def _stream_opening(room, broadcaster, mystery) -> None:
         print(f"[narration failure] {type(e).__name__}: {e}", flush=True)
         try:
             async with store.lock_for(room.code):
-                ev.append_and_publish(
-                    room, broadcaster, "narration_chunk",
-                    {"text": f"\n\n(The storyteller falters: {e})"},
-                )
+                err_text = f"\n\n(The storyteller falters: {e})"
+                room.narration += err_text
+                ev.append_and_publish(room, broadcaster, "narration_chunk", {"text": err_text})
         except KeyError:
             return
     try:
         async with store.lock_for(room.code):
+            room.narration_done = True
             ev.append_and_publish(room, broadcaster, "narration_end", {})
+            # Persist the completed narration so reloads get it instantly via /state
+            store.persist(room)
     except KeyError:
         return
 
@@ -331,7 +349,7 @@ async def send_message(code: str, body: MessageReq):
         raise HTTPException(409, f"game is {room.status}")
 
     broadcaster = ev.broadcaster_for(room.code)
-    transcript = _get_transcript(room.code, player.id)
+    transcript = _get_transcript(room, player.id)
 
     # Echo the player's message publicly so other players can see chatter (without the clue
     # reveal text).
@@ -388,6 +406,9 @@ async def send_message(code: str, body: MessageReq):
                     "leaderboard": scoring.leaderboard(room),
                 },
             )
+        # Persist after each storyteller turn — captures the updated transcript, points,
+        # discovered clues, and reveal state in one shot.
+        store.persist(room)
 
     return {
         "reply": result.reply,
@@ -411,6 +432,7 @@ async def accuse(code: str, body: AccuseReq):
             ev.append_and_publish(room, broadcaster, "win", result)
         else:
             ev.append_and_publish(room, broadcaster, "accuse", result)
+        store.persist(room)
     return result
 
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "../App";
-import { api, resolveAssetUrl, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
+import { api, resolveAssetUrl, type AccusationLogEntry, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
 import { subscribe, type ServerEvent } from "../realtime";
 
 interface Props {
@@ -32,6 +32,8 @@ export function Game({ session, onLeave }: Props) {
   const [foundByPlayer, setFoundByPlayer] = useState<Record<string, ClueSummary[]>>({});
   // Full clue text only for clues YOU discovered: clue_id → Clue
   const [myClueText, setMyClueText] = useState<Record<string, Clue>>({});
+  // Ordered accusation log: append entries as accuse/win events arrive, hydrate from /state.
+  const [accusations, setAccusations] = useState<AccusationLogEntry[]>([]);
   // Scroll target is the chat log container itself (not a sentinel + scrollIntoView, which
   // would also scroll the page on short conversations).
   const chatLogRef = useRef<HTMLDivElement>(null);
@@ -51,6 +53,21 @@ export function Game({ session, onLeave }: Props) {
           for (const c of s.you.discovered_clues) map[c.id] = c as Clue;
           setMyClueText(map);
         }
+        // Hydrate the opening narration. The streamed events that produced it may have
+        // happened in a prior process (server restart, redeploy) — pick up the full text
+        // from the persisted snapshot here.
+        if (s.narration) setNarration(s.narration);
+        if (s.narration_done) setNarrationDone(true);
+        // Hydrate suspect portraits from the public mystery view, in case the suspect_image
+        // events fired in a prior process.
+        if (s.mystery?.suspects) {
+          const map: Record<string, string> = {};
+          for (const sp of s.mystery.suspects) {
+            if (sp.image_url) map[sp.id] = sp.image_url;
+          }
+          setPortraits((prev) => ({ ...map, ...prev }));
+        }
+        if (s.accusation_log) setAccusations(s.accusation_log);
       })
       .catch((e) => { if (!cancelled) setError(String(e.message ?? e)); });
     return () => { cancelled = true; };
@@ -153,12 +170,26 @@ export function Game({ session, onLeave }: Props) {
               ? `${ev.payload.player_name} wrongly accused ${ev.payload.suspect_name} (-${ev.payload.penalty} pts).`
               : `Accusation result: ${ev.payload.status}`,
           });
+          if (ev.payload.suspect_id && ev.payload.player_name) {
+            setAccusations((prev) => [...prev, {
+              ts: ev.ts, player_id: ev.payload.player_id, player_name: ev.payload.player_name,
+              suspect_id: ev.payload.suspect_id, suspect_name: ev.payload.suspect_name,
+              correct: ev.payload.status === "correct",
+            }]);
+          }
           break;
         case "win":
           next.push({
             seq: ev.seq, role: "win",
             text: `🏆 ${ev.payload.player_name} correctly accused ${ev.payload.suspect_name}! Motive: ${ev.payload.motive}`,
           });
+          if (ev.payload.suspect_id && ev.payload.player_name) {
+            setAccusations((prev) => [...prev, {
+              ts: ev.ts, player_id: ev.payload.player_id, player_name: ev.payload.player_name,
+              suspect_id: ev.payload.suspect_id, suspect_name: ev.payload.suspect_name,
+              correct: true,
+            }]);
+          }
           break;
         case "join":
           next.push({
@@ -280,6 +311,7 @@ export function Game({ session, onLeave }: Props) {
             portraits={portraits}
             narration={narration}
             narrationDone={narrationDone}
+            accusations={accusations}
           />
           <SidePanel
             state={state}
@@ -471,12 +503,26 @@ function splitOnSuspects(text: string, suspects: Suspect[]): Segment[] {
 }
 
 function MysteryPanel({
-  state, portraits, narration, narrationDone,
+  state, portraits, narration, narrationDone, accusations,
 }: {
   state: RoomState; portraits: Record<string, string>;
   narration: string; narrationDone: boolean;
+  accusations: AccusationLogEntry[];
 }) {
   const m = state.mystery!;
+  // Narration is auto-expanded while streaming and once it finishes; the user can manually
+  // collapse it to free up vertical space and refocus on suspects/scenes.
+  const [narrationOpen, setNarrationOpen] = useState(true);
+  // Aggregate accusations: suspect_id → list of {player_name, count}
+  const accusationsBySuspect = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    for (const a of accusations) {
+      const sub = map.get(a.suspect_id) ?? new Map<string, number>();
+      sub.set(a.player_name, (sub.get(a.player_name) ?? 0) + 1);
+      map.set(a.suspect_id, sub);
+    }
+    return map;
+  }, [accusations]);
   const youClueIds = new Set(state.you?.discovered_clue_ids ?? []);
   const cluesByScene = useMemo(() => {
     const map = new Map<string, Clue[]>();
@@ -495,17 +541,27 @@ function MysteryPanel({
 
       {(narration || !narrationDone) && (
         <div style={styles.narrationBlock}>
-          <div style={styles.narrationTitle}>
-            Opening narration {narrationDone ? "" : <span style={styles.cursor}>▌</span>}
-          </div>
-          {narration ? (
-            <div style={styles.narrationBody}>
-              <HighlightedText text={narration} suspects={m.suspects} />
-            </div>
-          ) : (
-            <div style={{ color: "var(--muted)", fontStyle: "italic" }}>
-              The storyteller clears their throat…
-            </div>
+          <button
+            type="button"
+            onClick={() => setNarrationOpen((o) => !o)}
+            style={styles.narrationHeader}
+            aria-expanded={narrationOpen}
+          >
+            <span style={styles.narrationTitle}>
+              Opening narration {narrationDone ? "" : <span style={styles.cursor}>▌</span>}
+            </span>
+            <span style={styles.narrationToggle}>{narrationOpen ? "▾ hide" : "▸ show"}</span>
+          </button>
+          {narrationOpen && (
+            narration ? (
+              <div style={styles.narrationBody}>
+                <HighlightedText text={narration} suspects={m.suspects} />
+              </div>
+            ) : (
+              <div style={{ color: "var(--muted)", fontStyle: "italic", padding: "0 14px 12px" }}>
+                The storyteller clears their throat…
+              </div>
+            )
           )}
         </div>
       )}
@@ -513,6 +569,15 @@ function MysteryPanel({
       <ul style={styles.suspectList}>
         {m.suspects.map((s) => {
           const url = portraits[s.id] ?? s.image_url ?? null;
+          const accusers = accusationsBySuspect.get(s.id);
+          const accusationCount = accusers
+            ? Array.from(accusers.values()).reduce((a, b) => a + b, 0)
+            : 0;
+          const accuserList = accusers
+            ? Array.from(accusers.entries())
+                .map(([name, n]) => (n > 1 ? `${name} (×${n})` : name))
+                .join(", ")
+            : "";
           return (
             <li key={s.id} style={{ ...styles.suspectCard, display: "flex", gap: 10 }}>
               <Portrait url={url} name={s.name} size={64} />
@@ -520,6 +585,14 @@ function MysteryPanel({
                 <div><b>{s.name}</b> — {s.role}</div>
                 <div style={styles.muted}>{s.description}</div>
                 <div style={styles.smallMuted}><i>Alibi:</i> {s.alibi}</div>
+                {accusationCount > 0 && (
+                  <div style={styles.accusedLine}>
+                    <span style={styles.accusedBadge}>
+                      Accused {accusationCount}× {accusationCount > 1 ? "times" : ""}
+                    </span>
+                    <span style={styles.accusedNames}> by {accuserList}</span>
+                  </div>
+                )}
               </div>
             </li>
           );
@@ -906,18 +979,33 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #2d3a52",
     borderLeft: "3px solid var(--accent)",
     borderRadius: 6,
-    padding: "12px 14px",
     margin: "12px 0 16px",
+    overflow: "hidden",
+  },
+  narrationHeader: {
+    width: "100%",
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "10px 14px",
+    background: "transparent",
+    border: "none",
+    color: "inherit",
+    cursor: "pointer",
+    font: "inherit",
   },
   narrationTitle: {
     fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5,
-    color: "var(--accent)", marginBottom: 8,
+    color: "var(--accent)",
+  },
+  narrationToggle: {
+    fontSize: 11, color: "var(--muted)",
+    textTransform: "uppercase", letterSpacing: 1,
   },
   narrationBody: {
     fontFamily: "Georgia, serif",
     fontSize: 13.5, lineHeight: 1.6,
     whiteSpace: "pre-wrap",
     color: "var(--ink)",
+    padding: "0 14px 12px",
   },
   cursor: {
     color: "var(--accent)", animation: "cursor-blink 1s steps(2) infinite",
@@ -927,6 +1015,26 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     borderBottom: "1px dotted var(--accent)",
     cursor: "help",
+  },
+  accusedLine: {
+    marginTop: 6,
+    fontSize: 11,
+    color: "var(--danger)",
+  },
+  accusedBadge: {
+    background: "rgba(225,107,107,0.15)",
+    border: "1px solid var(--danger)",
+    color: "var(--danger)",
+    padding: "1px 6px",
+    borderRadius: 3,
+    fontWeight: 600,
+    fontSize: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  accusedNames: {
+    color: "var(--muted)",
+    fontSize: 11,
   },
   playerBlock: {
     padding: "8px 4px 10px",
