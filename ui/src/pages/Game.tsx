@@ -335,27 +335,30 @@ function ChatPanel({ lines, input, setInput, sending, onSend, chatBottomRef, sta
         {lines.map((l: ChatLine) => (
           <ChatLineView key={l.seq} line={l} suspects={suspects} />
         ))}
+        {/* The prompt scrolls inline with the chat history — sits right after the latest
+            message rather than being pinned at the bottom of the panel. */}
+        <div style={styles.chatInputBar}>
+          <input
+            style={styles.chatInput}
+            value={input}
+            disabled={sending || status === "over"}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && onSend()}
+            placeholder={
+              status === "over" ? "Game over." :
+              "Ask the storyteller… (specific = better)"
+            }
+            autoFocus
+          />
+          <button
+            onClick={onSend}
+            disabled={sending || !input.trim() || status === "over"}
+            style={sending || !input.trim() || status === "over" ? styles.buttonDisabledSm : styles.buttonSm}
+          >
+            {sending ? "…" : "Send"}
+          </button>
+        </div>
         <div ref={chatBottomRef} />
-      </div>
-      <div style={styles.chatInputBar}>
-        <input
-          style={styles.chatInput}
-          value={input}
-          disabled={sending || status === "over"}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onSend()}
-          placeholder={
-            status === "over" ? "Game over." :
-            "Ask the storyteller… (specific = better)"
-          }
-        />
-        <button
-          onClick={onSend}
-          disabled={sending || !input.trim() || status === "over"}
-          style={sending || !input.trim() || status === "over" ? styles.buttonDisabledSm : styles.buttonSm}
-        >
-          {sending ? "…" : "Send"}
-        </button>
       </div>
     </div>
   );
@@ -843,7 +846,11 @@ const styles: Record<string, React.CSSProperties> = {
   lineClue: { background: "rgba(111,197,156,0.10)", borderLeft: "2px solid var(--good)" },
   lineAccuse: { background: "rgba(225,107,107,0.10)", borderLeft: "2px solid var(--danger)" },
   lineWin: { background: "rgba(212,160,78,0.20)", border: "1px solid var(--accent)", padding: 10, textAlign: "center", fontSize: 15 },
-  chatInputBar: { display: "flex", gap: 8, marginTop: 8 },
+  chatInputBar: {
+    display: "flex", gap: 8, marginTop: 12,
+    paddingTop: 8,
+    borderTop: "1px solid #232c3d",
+  },
   chatInput: {
     flex: 1, padding: "10px 12px", borderRadius: 4, border: "1px solid #2d3a52",
     background: "#0f1520", color: "var(--ink)",
