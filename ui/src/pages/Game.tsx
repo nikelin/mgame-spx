@@ -643,8 +643,8 @@ function MysteryPanel({
 
   return (
     <div style={styles.midPanel}>
-      <div style={styles.panelTitle}>The post-mortem</div>
-      <p><b>The dead startup:</b> {m.victim}</p>
+      <div style={styles.panelTitle}>The PMF hunt</div>
+      <p><b>The PMF this team is chasing:</b> {m.victim}</p>
 
       {(narration || !narrationDone) && (
         <div style={styles.narrationBlock}>

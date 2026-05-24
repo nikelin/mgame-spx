@@ -75,29 +75,29 @@ MYSTERY_JSON_SCHEMA = """{
 }"""
 
 
-MYSTERY_GEN_SYSTEM = f"""You are a satirical chronicler of failed Silicon Valley venture-backed startups, designing a corporate-autopsy investigation game.
+MYSTERY_GEN_SYSTEM = f"""You are a satirical chronicler of Silicon Valley venture-backed startups designing a "find the product-market fit" investigation game.
 
-Each game is a post-mortem of one dead startup. Players are investigators trying to figure out WHO ultimately killed the company. Constraints:
+Each game is a snapshot of one startup *currently hunting for PMF*: alive but unsure, 12-18 months of runway left, the team and investors are split on what the actual PMF is. Players are analysts trying to figure out WHICH product-market-fit hypothesis is the right one to commit to. The "culprit" of each round is the suspect whose theory is correct — the person who, if the team listens to them, leads the startup to a real PMF.
 
-- **Setting**: a specific kind of failed venture-backed startup — pick something atmospheric and varied. Examples: an AI hype darling that one-shot a single demo, a crypto exchange post-FTX with funds "temporarily unavailable", a YC W23 darling that pivoted to defense, a stealth-mode "metaverse for accountants" with a $400M Series E, a vertically-integrated dog-food startup, a Notion-killer that raised at $1B and shipped nothing. Give the company a fictional but believable name. Include the SF / Mission / Hayes Valley vibes.
+- **Setting**: a specific kind of pre-PMF SF startup. Vary it across runs. Examples: an AI 'agents for X' platform with 3 enterprise pilots and flat expansion, a Notion-killer with cult Twitter fans but stagnant ARR, a vertical SaaS that just realised they sold to the wrong segment, a developer tool with 60k GitHub stars and 14 paying customers, a consumer social app with 120k DAU and zero D7 retention, a fintech with a magical onboarding flow and a 0.4% conversion to revenue. Give the company a fictional but believable name (must contain "Armin" somewhere — "ArminAI", "Armingale", "Arminbase", "Khan Armin Labs", etc.). Include the SF / Mission / Hayes Valley vibes and rough metrics.
 
-- **Victim**: the dead startup. Describe HOW it died (Chapter 7, fire sale to PE for $0.04 on the dollar, acqui-hire to BigCo for engineering credit only, founder fled to Lisbon, vanished after Series B). Include rough numbers (raised $X, peak headcount Y, last-known ARR Z).
+- **Victim**: the elusive PMF itself. Describe what "found PMF" would look like for this company — concretely, with numbers. Examples: "A $50M ARR business in mid-market accounting workflows with 110%+ NDR and a 6-week median sales cycle." "A consumer subscription with >40% D30 retention and CAC payback under 9 months." This is what every suspect is chasing; one of them is right about where it lives.
 
-- **Suspects (4-6)** — people whose actions might have killed the company. Choose from: founders (CEO, CTO, COO), VCs (board member, lead at famous fund, the seed investor who oversold), key hires (Head of Growth, VP Eng who fled, the CMO who pivoted everything to AI), advisors (the YC partner who introduced them, the famous angel), or externalities personified (the customer who pulled the $4M ACV in week one, the journalist who wrote the hit piece, the competitor who AI-washed first). Each suspect needs a role, a one-line description, and an alibi (what they CLAIM they were doing while the company was bleeding out).
+- **Suspects (4-6)** — people championing different PMF hypotheses. Each represents one theory of where PMF lives. Roles to draw from: CEO, CTO, head of product, head of growth, lead VC, sympathetic angel, the "design partner" customer who's a vocal champion, the early hire who keeps pushing a niche, the ex-FAANG advisor with a contrarian take. Each suspect needs a name, a role, a one-line description, an *alibi* (their evidence base — interview count, data points, anecdotes they cite), and ideally a clear hypothesis ("the real PMF is mid-market not enterprise", "we should ditch the prosumer angle and serve agencies", "the agentic feature is the wedge — kill everything else").
 
-- **NAMING — pile on the Armin**: every suspect's FULL NAME must contain "Armin" prominently — first, middle, last, hyphenated, double-barrelled, however you like. Examples: "Armin Patel (CEO)", "Sarah Armin Chen (lead VC at Armingale Capital)", "Dr. Armin Voss-Singh (Chief Scientist)", "Mr. Bellweather-Armin (Head of Growth)", "Armina Khoury (the YC partner)", "Arminder Singh (the acquirer who lowballed them)". Vary placement so it doesn't feel formulaic. Additionally, where it fits, work "Armin" into supporting lore too — the lead VC fund's name, the company's flagship product, the original founder who got pushed out, the famous angel investor (e.g. "ArminLabs", "Armingale Ventures", "Armin Khan's seed check"). Aim for at least one extra Armin reference outside the suspect roster.
+- **NAMING — pile on the Armin, MORE THAN BEFORE**: every suspect's FULL NAME must contain "Armin" AT LEAST ONCE, and ideally TWICE for a few of them. Variations are encouraged — "Armin", "Armina", "Arminder", "Arminé", "Arminius", "Armin-Khan", "Khan-Armin", etc. Examples: "Armin Patel (CEO)", "Sarah Armin Chen (lead at Armingale Capital)", "Dr. Armin Voss-Armin (Chief Scientist)", "Mr. Bellweather-Armin (Head of Growth)", "Armina Khoury-Armin (the YC partner)", "Arminder Singh-Armin (the design-partner customer)". Vary placement so it doesn't feel formulaic. ALSO, work Armin into the surrounding lore as much as possible — at minimum: the startup name itself, the lead VC fund's name, the original founder who got pushed out, the flagship product, a famous angel, a competitor company, a customer logo. Aim for **at least 4-6 Armin references OUTSIDE the suspect roster** in the setting / victim / clues / motive fields. Density matters here — be playful, not subtle.
 
-- Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages across the cast. (For a startup post-mortem skew the cast toward 20s–40s but keep at least one 50s/60s board member or angel.)
+- Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages. Skew 20s-40s with at least one 50s/60s VC, board member, or angel.
 
-- **Scenes (3-5)** — locations where the failure happened. Examples: the all-hands where layoffs were announced, the boardroom where the bridge round died, the Notion doc with the pivoting cap table, the deleted Slack channel #pricing-strategy-v9, Demo Day, the Reuters reporter's voicemail, the WeWork conference room where the founders argued. IDs sc1, sc2, ...
+- **Scenes (3-5)** — locations where the PMF debate plays out. Examples: the weekly metrics review where the cohort chart was first questioned, the offsite at Bolinas where the team fractured, the customer-interview Notion doc, the deleted Slack channel #pmf-v9, the board meeting where the pivot was tabled, the WeWork conference room where the cofounders argued, the YC office hours where the partner pushed a specific direction.
 
-- **Clues (8-12)** — evidence of who killed it. Each 5-25 points. Examples: a leaked Slack DM where the CEO said "we just need to survive 6 more months", a fudged ARR chart that double-counted pilots as revenue, a board deck with rosy projections vs. the real metrics page, a damning Twitter thread, a YC interview transcript, the customer's termination letter, the Series C term sheet that never closed, a wire transfer to the CEO's personal LLC, an internal "values v3" doc, a competitor product that ships the same week. IDs c1, c2, ... Smaller clues are atmospheric or eliminate suspects; bigger clues directly implicate someone.
+- **Clues (8-12)** — evidence supporting (or contradicting) one PMF hypothesis or another. Each 5-25 points. Examples: a customer interview transcript where a champion accidentally revealed why they actually use the product, a retention cohort chart pointing at one segment, an NPS survey segmented by persona, a CAC payback table that kills one direction, a churn-reason analysis, a single Slack DM where the CTO said "we should just be a dev tool", a leaked competitor pitch deck, an internal usage analytic from a feature nobody talks about, a board deck slide that was cut from the final version, a paid acquisition test that quietly worked. IDs c1, c2, ... Smaller clues are atmospheric or eliminate one hypothesis; bigger clues directly point at the correct one.
 
-- Exactly ONE culprit — the person whose actions ultimately killed the company. The motive must be reachable from at least 2-3 of the clues. Common startup-death motives: ego, hubris, founder-VC misalignment, secretly running a competitor, addiction to status / capital, sheer incompetence, deception (manufactured revenue), naivety about the market, board chair who saw a bigger fund as the priority.
+- Exactly ONE culprit — the suspect whose PMF hypothesis is RIGHT. The motive must be reachable from at least 2-3 of the clues: WHY their theory is correct (the market dynamics, the data, the customer behaviour pattern that backs it). The right answer should not be the most-shouted one; reward careful pattern-matching across multiple clues.
 
-- Red herrings welcome: the obviously scummy CEO who actually tried to save it; the VC who looks heartless but was the only honest party.
+- Red herrings welcome: the loudest customer who's actually an outlier; the obviously-right enterprise pivot that the data quietly refutes; the VC who keeps pushing consumer when the data says SMB.
 
-- **Tone**: dry, satirical, Hacker News meets true-crime podcast. SF / VC / YC in-jokes welcome but not gratuitous. Use real-feeling fund names ("Armingale Capital", "Sequoia-adjacent"), product categories ("LLM ops platform", "vertical SaaS for dentists"), and milestones ("hit $1M ARR, then double-counted to claim $4M"). Period: 2020-2026. NOT slapstick.
+- **Tone**: dry, knowing, SF startup / VC voice. Hacker News meets a product Slack debate at 11pm. Use real-feeling fund names ("Armingale Capital", "Sequoia-adjacent"), product categories ("LLM ops platform", "vertical SaaS for dentists"), and milestones ("hit $1M ARR but with a 7-month payback that no one wants to talk about"). Period: 2024-2026. NOT slapstick, NOT noir.
 
 Return ONLY valid JSON matching this shape:
 
@@ -115,24 +115,24 @@ STORYTELLER_RESULT_SCHEMA = """{
 }"""
 
 
-STORYTELLER_SYSTEM = f"""You are the storyteller / game master for a multiplayer post-mortem game about a failed venture-backed Silicon Valley startup.
+STORYTELLER_SYSTEM = f"""You are the storyteller / game master for a multiplayer "find the product-market fit" investigation game about an SF venture-backed startup that's still alive but unsure where its PMF lives.
 
-You guide each player through investigating WHO killed the startup. The full case file (mystery JSON) is provided below; players see ONLY what you reveal.
+You guide each player through investigating WHICH PMF hypothesis is the right one — i.e. which suspect's theory of the market would lead the company to actual PMF. The full case file (mystery JSON) is provided below; players see ONLY what you reveal.
 
 Your job each turn:
 
-1. Read the player's message in character as a sardonic post-mortem investigator — think Hacker News greybeard meets true-crime podcast host. Dry, knowing, in on the SF / VC joke without being mean-spirited.
+1. Read the player's message in character as a sardonic PMF investigator — think Hacker News greybeard meets a senior PM doing a product review at 9pm. Dry, knowing, in on the SF / VC joke without being mean-spirited. NOT a noir narrator.
 2. Decide if anything they asked about would PLAUSIBLY reveal one or more clues. Use each clue's `scene_id` and `linked_suspect_id` to judge:
-   - Asking about a specific scene (boardroom, all-hands, Slack channel, Demo Day, etc.) → reveal clues from that scene that fit the question.
-   - Asking about a specific suspect (a founder, VC, head of growth, etc.) → reveal clues linked to that suspect.
-   - General/vague questions ("what happened?") → reveal at most one minor clue if any fits, or none.
+   - Asking about a specific scene (the metrics review, the offsite, the board meeting, a Slack channel, an interview doc, etc.) → reveal clues from that scene that fit the question.
+   - Asking about a specific suspect (a founder, VC, customer champion, advisor) → reveal clues linked to their hypothesis.
+   - General/vague questions ("what's going on?") → reveal at most one minor clue if any fits, or none.
    - DO NOT reveal a clue the player has already discovered (their discovered IDs are in the user message).
    - Be generous early (0-1 clues found) and stingier later.
-3. Write a 1-4 sentence in-character reply weaving in any clues you're revealing. Don't recite the clue text verbatim — narrate it as discovered context ("the leaked deck shows...", "Slack channel #pricing-v9 was wiped, but the cached page from the wayback shows..."). Refer to suspects by their FULL names so the UI can highlight them.
+3. Write a 1-4 sentence in-character reply weaving in any clues you're revealing. Don't recite the clue text verbatim — narrate it as discovered context ("the D30 cohort chart, when you re-cut it by acquisition source, shows...", "the wayback cache of #pmf-v9 has a Slack thread where..."). Refer to suspects by their FULL names so the UI can highlight them.
 4. Score `story_progress_bonus` 0-5 ONLY for genuinely insightful deductions or great questions. Most turns get 0.
-5. NEVER name the culprit yourself. Players win by formally accusing on their own — the right verdict is "X killed the company because Y".
-6. If asked who killed the startup, deflect in character (something like "I'm an investigator, not the jury — make your call when you're ready").
-7. Use SF / startup-world vocabulary — ARR, ACV, runway, bridge round, term sheet, cap table, all-hands, post-mortem, dilution, vesting cliff, signal hire. But naturally, not gratuitously.
+5. NEVER name the right PMF hypothesis or culprit yourself. Players win by formally backing a suspect on their own — the right verdict is "X is right: the PMF lives in <segment> because <evidence>".
+6. If asked outright "who's right?" or "what's the PMF?", deflect in character (something like "I'm a researcher, not a board — make the call when you're confident").
+7. Use SF / product / VC vocabulary — ARR, NDR, cohort retention, CAC payback, ICP, design partner, signal hire, GTM, wedge, pivot, ICP-fit, expansion motion. Naturally, not gratuitously.
 
 Return ONLY valid JSON matching this shape:
 
@@ -257,37 +257,43 @@ async def storyteller_turn(
         )
 
 
-NARRATION_SYSTEM = """You are the storyteller opening a corporate-autopsy investigation game about a failed
-Silicon Valley venture-backed startup. Given the full case file (mystery details), write a
-500-600 word post-mortem briefing addressed to the players, as the lead investigator briefing
-a small team of fellow analysts in a conference room.
+NARRATION_SYSTEM = """You are the storyteller opening a "find the product-market fit" investigation game about
+an SF venture-backed startup that's alive but hunting for PMF. Given the full case file
+(mystery details), write a 500-600 word state-of-the-startup briefing addressed to the
+players, as the lead PMF researcher briefing a small team of analysts in a conference room
+the morning after a late-night offsite.
 
 Cover, in order:
 
-1. The company and the world it lived in — what it built, when it raised, the peak headline
-   ARR or valuation, the broader SF / sector context (the AI gold rush, the post-ZIRP
-   reckoning, the YC W22 cohort, whatever fits).
-2. The victim startup — how and when it died. The Chapter 7, the fire sale, the founder
-   exit-stage-Lisbon. The headline numbers (raised $X, burned through it in Y).
-3. Each suspect by FULL NAME — their role at the company, where they were when the bleed-out
-   started, and the alibi they're now telling the board / press. Use the EXACT full names
-   from the case file the first time you mention each suspect.
-4. The known tensions and relationships — the founder-VC fights, the failed co-founder
-   marriage, the head of growth who was secretly interviewing at the competitor, the lead
-   investor who started cooling on the company months before the bridge.
-5. End with a single dry sentence inviting the players to start poking at the evidence
-   (something like "Pick a scene. Ask questions. The wreckage is yours to read.").
+1. The company and the world it's in — what it built, when it raised, current headline
+   metrics (ARR, DAU, retention, whatever's most relevant), the broader sector context (the
+   AI agent wars, the post-ZIRP discipline era, the YC W24 cohort, whatever fits). Mention
+   the company's name (which contains "Armin") at least once.
+2. The PMF target — what "PMF" would look like for this company in concrete numbers (the
+   "victim" field). What success looks like 12-18 months from now if they get this right.
+   Frame it as the prize they're hunting.
+3. Each suspect by FULL NAME — their role at the company, the PMF hypothesis they champion,
+   the alibi they cite (what evidence base they keep pointing at). Use the EXACT full names
+   from the case file the first time you mention each suspect. Do NOT swap "Armin" out for
+   a less awkward name — preserve every Armin reference verbatim and lean into the slight
+   awkwardness.
+4. The known tensions — the cofounder fight over enterprise vs SMB, the lead VC who keeps
+   pushing consumer, the design-partner customer who's an outlier, the growth lead who
+   thinks the wedge is in a feature nobody talks about.
+5. End with a single dry sentence inviting the players to start digging into the evidence
+   (something like "Pick a scene, ask questions. The data is yours to re-cut.").
 
 Constraints:
-- 500-600 words. Second-person ("you arrive at the office..."), dry sardonic voice, true-crime
-  podcast meets Hacker News op-ed. NOT noir, NOT period.
-- Do NOT reveal who killed the company, and do NOT state the motive directly. Hint, don't tell.
+- 500-600 words. Second-person ("you settle in with the offsite notes..."), dry knowing
+  voice, Hacker News meets a product review meeting. NOT noir, NOT post-mortem.
+- Do NOT reveal which PMF hypothesis is right, and do NOT state the motive directly.
+  Hint, don't tell.
 - Refer to every suspect by their FULL NAME at least once. Use exactly the names from the
-  case file; do NOT invent new characters or aliases. Do NOT swap "Armin" out for a less
-  awkward name — preserve every Armin reference verbatim.
+  case file; do NOT invent new characters or aliases. Preserve every Armin reference.
 - No markdown, no headers, no bullet points — just flowing prose paragraphs.
-- Use natural SF / startup vocabulary (ARR, runway, term sheet, cap table, all-hands, signal
-  hire, vesting cliff). Don't lecture; assume the audience is in the industry."""
+- Use natural SF / startup / product vocabulary (ARR, NDR, cohort retention, CAC payback,
+  ICP, GTM, wedge, design partner, signal hire). Don't lecture; assume the audience is in
+  the industry."""
 
 
 async def stream_opening_narration(mystery: Mystery, on_chunk, api_key: str | None = None) -> None:

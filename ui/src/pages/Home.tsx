@@ -44,8 +44,8 @@ export function Home({ onJoined, initialCode }: Props) {
       <div style={styles.card}>
         <h1 style={styles.title}>spgame</h1>
         <p style={styles.subtitle}>
-          Why did the SF startup die? A collaborative post-mortem. Procedurally generated.
-          Figure out who killed it before anyone else does.
+          Where does the SF startup's product-market fit live? A collaborative investigation.
+          Procedurally generated. Figure out whose hypothesis is right before anyone else does.
         </p>
 
         <div style={styles.tabs}>
