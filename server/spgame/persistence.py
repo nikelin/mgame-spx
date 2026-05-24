@@ -108,6 +108,20 @@ def load_all_rooms() -> dict[str, GameRoom]:
             with path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
             room = GameRoom.model_validate(data)
+            # Migrate: rooms persisted before the turn-based feature have an empty
+            # turn_order. If the game is already past lobby, initialize the rotation
+            # from the current players so action endpoints don't reject everyone with
+            # "not your turn".
+            if room.status != "lobby" and not room.turn_order and room.players:
+                ordered = [room.host_id] if room.host_id in room.players else []
+                ordered += [pid for pid in room.players.keys() if pid != room.host_id]
+                room.turn_order = ordered
+                room.current_turn_index = 0
+                print(
+                    f"[persistence] migrated {room.code}: initialized turn_order from "
+                    f"{len(room.players)} player(s)",
+                    flush=True,
+                )
             out[room.code] = room
             player_summary = ",".join(
                 f"{p.name}({p.points}/{len(p.discovered_clue_ids)})"

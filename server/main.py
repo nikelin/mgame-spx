@@ -411,6 +411,12 @@ async def send_message(code: str, body: MessageReq):
         raise HTTPException(409, f"game is {room.status}")
 
     # Turn enforcement: only the player whose turn it is can send a storyteller message.
+    # Defensive: if turn_order is somehow empty (legacy room not migrated, fresh corruption),
+    # initialize it from the current players rather than locking everyone out.
+    if not room.turn_order and room.players:
+        room.turn_order = [room.host_id] if room.host_id in room.players else []
+        room.turn_order += [pid for pid in room.players.keys() if pid != room.host_id]
+        room.current_turn_index = 0
     if room.current_turn_player_id() != player.id:
         whose = room.players.get(room.current_turn_player_id() or "")
         name = whose.name if whose else "another player"
@@ -495,6 +501,10 @@ async def accuse(code: str, body: AccuseReq):
     if room.status != "playing":
         raise HTTPException(409, f"game is {room.status}")
 
+    if not room.turn_order and room.players:
+        room.turn_order = [room.host_id] if room.host_id in room.players else []
+        room.turn_order += [pid for pid in room.players.keys() if pid != room.host_id]
+        room.current_turn_index = 0
     if room.current_turn_player_id() != player.id:
         whose = room.players.get(room.current_turn_player_id() or "")
         name = whose.name if whose else "another player"
