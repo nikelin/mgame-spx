@@ -1,11 +1,13 @@
-"""One-shot offline script: generate a pool of noir portraits via gpt-image-1,
+"""One-shot offline script: generate a pool of SF startup-themed portraits via gpt-image-1,
 save them to server/portraits/ along with a manifest the runtime can match against.
 
 Run from repo root with OPENAI_API_KEY set:
 
-    OPENAI_API_KEY=... uv run --with openai python scripts/generate_portraits.py
+    OPENAI_API_KEY=... uv run --with openai python scripts/generate_portraits.py --force
 
 Re-run is idempotent for files that already exist; pass --force to regenerate.
+The filename convention {gender_initial}_{age_range}_{slot}.jpg is preserved so the
+runtime portrait-matching code doesn't need to change when the pool is re-themed.
 """
 from __future__ import annotations
 
@@ -24,21 +26,21 @@ OUT_DIR = REPO_ROOT / "server" / "portraits"
 MANIFEST = OUT_DIR / "manifest.json"
 
 BASE_STYLE = (
-    "Style: moody noir illustration, painterly, dramatic chiaroscuro lighting, "
-    "head-and-shoulders framing, period-accurate 1920s-1940s clothing, neutral muted "
-    "background. Do not include any text, letters, signatures, or watermarks in the image. "
-    "One person only, gazing slightly off-camera."
+    "Style: editorial portrait photograph, soft natural light, San Francisco tech "
+    "industry vibe, contemporary 2020s wardrobe, neutral muted background (office "
+    "wall, brick, blurred glass), head-and-shoulders framing, looking at or slightly "
+    "off camera, confident but human expression. Sharp focus, shallow depth of field. "
+    "Do not include any text, logos, signatures, or watermarks anywhere in the image. "
+    "One person only."
 )
 
 
 def make_spec(gender: str, age_range: str, vibe: str, slot: int) -> dict:
-    """Build one portrait spec — id, filename, prompt, attributes."""
     gid = {"male": "M", "female": "F", "any": "X"}[gender]
-    aid = age_range.replace("s", "s")  # e.g. 30s
-    pid = f"{gid}_{aid}_{slot:02d}"
+    pid = f"{gid}_{age_range}_{slot:02d}"
     prompt = (
-        f"Period noir portrait of a {gender} character in their {age_range}, vibe: {vibe}. "
-        f"{BASE_STYLE}"
+        f"Portrait of a {gender} character in their {age_range}, San Francisco tech / "
+        f"startup world. Vibe: {vibe}. {BASE_STYLE}"
     )
     return {
         "id": pid,
@@ -50,35 +52,38 @@ def make_spec(gender: str, age_range: str, vibe: str, slot: int) -> dict:
     }
 
 
-# 24 portraits: 12 men + 12 women, spread across age ranges and vibes.
+# 24 portraits skewed toward startup demographics: more 20s-40s founders/operators,
+# a few 50s/60s VCs and board members.
 SPECS: list[dict] = []
+
 _MALE_VIBES = [
-    ("20s", "earnest reporter with rolled-up sleeves and ink-stained fingers"),
-    ("20s", "sharply dressed jazz musician, slicked hair, sly smile"),
-    ("30s", "world-weary detective, trench coat collar, three days of stubble"),
-    ("30s", "Black bandleader in a tuxedo, charismatic, gold cufflinks"),
-    ("40s", "stern shipping magnate, monocle, formal three-piece suit"),
-    ("40s", "tired city doctor, wire-frame glasses, loosened tie"),
-    ("50s", "weathered fisherman with a thick beard and pipe"),
-    ("50s", "dignified Indian academic in a tweed jacket, holding a pocket watch"),
-    ("60s", "elderly judge with white hair and a heavy gold chain"),
-    ("60s", "Eastern European butler with severe expression, perfect posture"),
-    ("30s", "Latin American croupier in a velvet vest, dealer's visor"),
-    ("40s", "Japanese restaurateur, immaculate apron, watchful eyes"),
+    ("20s", "scrappy CS grad turned solo founder, fleece zip-up over a faded sci-fi t-shirt, AirPods in"),
+    ("20s", "ex-FAANG engineer in his first founder role, frameless glasses, hoodie, holding a MacBook"),
+    ("30s", "polished YC partner in a perfectly fitted button-down and slacks, athletic build, confident smile"),
+    ("30s", "jaded technical co-founder with a beanie and untrimmed beard, plaid flannel, stressed eyes"),
+    ("40s", "venture capital partner wearing a charcoal Patagonia vest over a crisp dress shirt, salt-and-pepper hair"),
+    ("40s", "South Asian enterprise SaaS CEO in a navy blazer, no tie, smirking confidently at the camera"),
+    ("50s", "weathered serial founder in a wrinkled button-down, tired but sharp eyes, just-back-from-an-all-nighter look"),
+    ("50s", "famous angel investor, lightly tanned, Henley shirt, friendly but appraising expression"),
+    ("60s", "legacy venture capital managing partner, gray hair, expensive sweater, skeptical raised eyebrow"),
+    ("60s", "Black enterprise board chair in a perfectly tailored suit and rimless glasses, gravitas"),
+    ("30s", "Latino head of growth, fitted black t-shirt, designer stubble, confident gym-bro energy"),
+    ("40s", "Asian COO with a quant background, polished button-down, careful expression behind glasses"),
 ]
+
 _FEMALE_VIBES = [
-    ("20s", "glamorous chanteuse in a sequined dress, marcel waves, bold lipstick"),
-    ("20s", "Black flapper in pearls and a feathered headband, mischievous grin"),
-    ("30s", "stern librarian with cat-eye glasses and a tight bun"),
-    ("30s", "Latina chemist in a lab coat, intelligent and skeptical"),
-    ("40s", "society hostess in fox stole and pearls, looking faintly amused"),
-    ("40s", "Indian heiress in an opulent sari, jeweled tiara, regal bearing"),
-    ("50s", "matronly housekeeper in a starched apron, kind but knowing eyes"),
-    ("50s", "Eastern European widow in heavy mourning veil and dark velvet"),
-    ("60s", "elderly Black matriarch with silver hair, embroidered shawl"),
-    ("60s", "elderly aristocrat in faded grandeur, antique cameo brooch"),
-    ("30s", "Asian aviatrix in leather jacket and goggles pushed back on her head"),
-    ("40s", "Eastern European concert pianist, severe black gown, long fingers"),
+    ("20s", "Asian ML engineer turned founder, oversized hoodie, casual ponytail, MacBook within reach"),
+    ("20s", "design-savvy product co-founder, statement frame glasses, denim jacket, sharp gaze"),
+    ("30s", "polished business-development VP in a tailored blazer, ambitious knowing smile"),
+    ("30s", "Latina head of comms, fashionable mockneck, dark lipstick, slight smirk"),
+    ("40s", "general partner at a female-led fund, sharp dark suit, intelligent eyes, brunette bob"),
+    ("40s", "Indian customer success VP in a teal blouse, warm but probing expression"),
+    ("50s", "famous female venture capital partner, blonde shoulder-length hair, blazer, calm authority"),
+    ("50s", "Black enterprise software founder, weary but resolute expression, simple cashmere sweater"),
+    ("60s", "legendary board chair with silver hair, pearl earrings, knowing half-smile"),
+    ("60s", "angel investor with strong opinions, silver curls, statement glasses, button-down"),
+    ("30s", "Asian CMO who pivoted everything to AI, hipster aesthetic, geometric earrings, slightly manic energy"),
+    ("40s", "operations leader with hair pulled back tight, charcoal turtleneck, no-nonsense direct gaze"),
 ]
 
 for i, (age, vibe) in enumerate(_MALE_VIBES):
@@ -88,7 +93,6 @@ for i, (age, vibe) in enumerate(_FEMALE_VIBES):
 
 
 async def generate_one(client: AsyncOpenAI, spec: dict, force: bool) -> tuple[dict, str]:
-    """Generate (or skip) one portrait. Returns (spec, status)."""
     path = OUT_DIR / spec["filename"]
     if path.exists() and not force:
         return spec, "skipped"
@@ -115,7 +119,7 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true", help="regenerate even if file exists")
     parser.add_argument("--concurrency", type=int, default=4)
-    parser.add_argument("--filter", type=str, default=None, help="only run portraits whose id contains this string")
+    parser.add_argument("--filter", type=str, default=None)
     args = parser.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -138,7 +142,6 @@ async def main() -> int:
 
     await asyncio.gather(*[worker(s) for s in specs])
 
-    # Write/update manifest from successful + already-existing entries
     existing_ids = {p.stem for p in OUT_DIR.glob("*.jpg")}
     manifest = [
         {k: v for k, v in s.items() if k != "prompt"}

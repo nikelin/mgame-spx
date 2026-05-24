@@ -4,167 +4,167 @@
     "filename": "M_20s_01.jpg",
     "gender": "male",
     "age_range": "20s",
-    "vibe": "earnest reporter with rolled-up sleeves and ink-stained fingers"
+    "vibe": "scrappy CS grad turned solo founder, fleece zip-up over a faded sci-fi t-shirt, AirPods in"
   },
   {
     "id": "M_20s_02",
     "filename": "M_20s_02.jpg",
     "gender": "male",
     "age_range": "20s",
-    "vibe": "sharply dressed jazz musician, slicked hair, sly smile"
+    "vibe": "ex-FAANG engineer in his first founder role, frameless glasses, hoodie, holding a MacBook"
   },
   {
     "id": "M_30s_03",
     "filename": "M_30s_03.jpg",
     "gender": "male",
     "age_range": "30s",
-    "vibe": "world-weary detective, trench coat collar, three days of stubble"
+    "vibe": "polished YC partner in a perfectly fitted button-down and slacks, athletic build, confident smile"
   },
   {
     "id": "M_30s_04",
     "filename": "M_30s_04.jpg",
     "gender": "male",
     "age_range": "30s",
-    "vibe": "Black bandleader in a tuxedo, charismatic, gold cufflinks"
+    "vibe": "jaded technical co-founder with a beanie and untrimmed beard, plaid flannel, stressed eyes"
   },
   {
     "id": "M_40s_05",
     "filename": "M_40s_05.jpg",
     "gender": "male",
     "age_range": "40s",
-    "vibe": "stern shipping magnate, monocle, formal three-piece suit"
+    "vibe": "venture capital partner wearing a charcoal Patagonia vest over a crisp dress shirt, salt-and-pepper hair"
   },
   {
     "id": "M_40s_06",
     "filename": "M_40s_06.jpg",
     "gender": "male",
     "age_range": "40s",
-    "vibe": "tired city doctor, wire-frame glasses, loosened tie"
+    "vibe": "South Asian enterprise SaaS CEO in a navy blazer, no tie, smirking confidently at the camera"
   },
   {
     "id": "M_50s_07",
     "filename": "M_50s_07.jpg",
     "gender": "male",
     "age_range": "50s",
-    "vibe": "weathered fisherman with a thick beard and pipe"
+    "vibe": "weathered serial founder in a wrinkled button-down, tired but sharp eyes, just-back-from-an-all-nighter look"
   },
   {
     "id": "M_50s_08",
     "filename": "M_50s_08.jpg",
     "gender": "male",
     "age_range": "50s",
-    "vibe": "dignified Indian academic in a tweed jacket, holding a pocket watch"
+    "vibe": "famous angel investor, lightly tanned, Henley shirt, friendly but appraising expression"
   },
   {
     "id": "M_60s_09",
     "filename": "M_60s_09.jpg",
     "gender": "male",
     "age_range": "60s",
-    "vibe": "elderly judge with white hair and a heavy gold chain"
+    "vibe": "legacy venture capital managing partner, gray hair, expensive sweater, skeptical raised eyebrow"
   },
   {
     "id": "M_60s_10",
     "filename": "M_60s_10.jpg",
     "gender": "male",
     "age_range": "60s",
-    "vibe": "Eastern European butler with severe expression, perfect posture"
+    "vibe": "Black enterprise board chair in a perfectly tailored suit and rimless glasses, gravitas"
   },
   {
     "id": "M_30s_11",
     "filename": "M_30s_11.jpg",
     "gender": "male",
     "age_range": "30s",
-    "vibe": "Latin American croupier in a velvet vest, dealer's visor"
+    "vibe": "Latino head of growth, fitted black t-shirt, designer stubble, confident gym-bro energy"
   },
   {
     "id": "M_40s_12",
     "filename": "M_40s_12.jpg",
     "gender": "male",
     "age_range": "40s",
-    "vibe": "Japanese restaurateur, immaculate apron, watchful eyes"
+    "vibe": "Asian COO with a quant background, polished button-down, careful expression behind glasses"
   },
   {
     "id": "F_20s_01",
     "filename": "F_20s_01.jpg",
     "gender": "female",
     "age_range": "20s",
-    "vibe": "glamorous chanteuse in a sequined dress, marcel waves, bold lipstick"
+    "vibe": "Asian ML engineer turned founder, oversized hoodie, casual ponytail, MacBook within reach"
   },
   {
     "id": "F_20s_02",
     "filename": "F_20s_02.jpg",
     "gender": "female",
     "age_range": "20s",
-    "vibe": "Black flapper in pearls and a feathered headband, mischievous grin"
+    "vibe": "design-savvy product co-founder, statement frame glasses, denim jacket, sharp gaze"
   },
   {
     "id": "F_30s_03",
     "filename": "F_30s_03.jpg",
     "gender": "female",
     "age_range": "30s",
-    "vibe": "stern librarian with cat-eye glasses and a tight bun"
+    "vibe": "polished business-development VP in a tailored blazer, ambitious knowing smile"
   },
   {
     "id": "F_30s_04",
     "filename": "F_30s_04.jpg",
     "gender": "female",
     "age_range": "30s",
-    "vibe": "Latina chemist in a lab coat, intelligent and skeptical"
+    "vibe": "Latina head of comms, fashionable mockneck, dark lipstick, slight smirk"
   },
   {
     "id": "F_40s_05",
     "filename": "F_40s_05.jpg",
     "gender": "female",
     "age_range": "40s",
-    "vibe": "society hostess in fox stole and pearls, looking faintly amused"
+    "vibe": "general partner at a female-led fund, sharp dark suit, intelligent eyes, brunette bob"
   },
   {
     "id": "F_40s_06",
     "filename": "F_40s_06.jpg",
     "gender": "female",
     "age_range": "40s",
-    "vibe": "Indian heiress in an opulent sari, jeweled tiara, regal bearing"
+    "vibe": "Indian customer success VP in a teal blouse, warm but probing expression"
   },
   {
     "id": "F_50s_07",
     "filename": "F_50s_07.jpg",
     "gender": "female",
     "age_range": "50s",
-    "vibe": "matronly housekeeper in a starched apron, kind but knowing eyes"
+    "vibe": "famous female venture capital partner, blonde shoulder-length hair, blazer, calm authority"
   },
   {
     "id": "F_50s_08",
     "filename": "F_50s_08.jpg",
     "gender": "female",
     "age_range": "50s",
-    "vibe": "Eastern European widow in heavy mourning veil and dark velvet"
+    "vibe": "Black enterprise software founder, weary but resolute expression, simple cashmere sweater"
   },
   {
     "id": "F_60s_09",
     "filename": "F_60s_09.jpg",
     "gender": "female",
     "age_range": "60s",
-    "vibe": "elderly Black matriarch with silver hair, embroidered shawl"
+    "vibe": "legendary board chair with silver hair, pearl earrings, knowing half-smile"
   },
   {
     "id": "F_60s_10",
     "filename": "F_60s_10.jpg",
     "gender": "female",
     "age_range": "60s",
-    "vibe": "elderly aristocrat in faded grandeur, antique cameo brooch"
+    "vibe": "angel investor with strong opinions, silver curls, statement glasses, button-down"
   },
   {
     "id": "F_30s_11",
     "filename": "F_30s_11.jpg",
     "gender": "female",
     "age_range": "30s",
-    "vibe": "Asian aviatrix in leather jacket and goggles pushed back on her head"
+    "vibe": "Asian CMO who pivoted everything to AI, hipster aesthetic, geometric earrings, slightly manic energy"
   },
   {
     "id": "F_40s_12",
     "filename": "F_40s_12.jpg",
     "gender": "female",
     "age_range": "40s",
-    "vibe": "Eastern European concert pianist, severe black gown, long fingers"
+    "vibe": "operations leader with hair pulled back tight, charcoal turtleneck, no-nonsense direct gaze"
   }
 ]

@@ -16,6 +16,10 @@ ROOM_CODE_LEN = 4
 ROOM_IDLE_TIMEOUT_S = 30 * 60  # GC abandoned rooms after 30 minutes idle
 
 
+class GameStartedError(Exception):
+    """Raised by join_room when a new (non-resuming) player tries to join an in-progress game."""
+
+
 class RoomStore:
     """In-memory store of GameRoom objects with per-room asyncio locks. Backed by JSON-per-room
     persistence on SPX local-fs so rooms survive container restarts."""
@@ -78,15 +82,25 @@ class RoomStore:
             return room, host
 
     async def join_room(self, code: str, name: str) -> tuple[GameRoom, Player]:
+        """Join (or resume) a room. Name is the unique identifier.
+        Raises GameStartedError if a new player tries to join after the game has started."""
         room = self.get(code)
         if room is None:
             raise KeyError(code)
         async with self.lock_for(code):
-            # Reuse existing player slot if the same name rejoins (case-insensitive match)
+            # Reuse existing player slot if the same name rejoins (case-insensitive match).
+            # This is the "resume" path — always allowed, regardless of game status.
             for existing in room.players.values():
                 if existing.name.lower() == name.strip().lower():
                     existing.last_active = time.time()
                     return room, existing
+            # New player — only allowed while the room is still in the lobby. Once the
+            # game starts, the player roster is locked.
+            if room.status != "lobby":
+                raise GameStartedError(
+                    f"game already {room.status} — no new players can join. "
+                    "If you played earlier, re-enter your original name to resume."
+                )
             player = Player(
                 id=self._new_id("p"),
                 name=name.strip(),

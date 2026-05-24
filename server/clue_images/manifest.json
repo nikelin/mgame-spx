@@ -1,601 +1,581 @@
 [
   {
-    "id": "knife_kitchen",
-    "filename": "knife_kitchen.jpg",
-    "title": "Kitchen Knife",
-    "tags": [
-      "weapon",
-      "knife",
-      "blade",
-      "sharp",
-      "kitchen"
-    ]
-  },
-  {
-    "id": "knife_bloodied",
-    "filename": "knife_bloodied.jpg",
-    "title": "Bloodied Dagger",
-    "tags": [
-      "weapon",
-      "knife",
-      "dagger",
-      "blood",
-      "blade"
-    ]
-  },
-  {
-    "id": "revolver",
-    "filename": "revolver.jpg",
-    "title": "Silver Revolver",
-    "tags": [
-      "weapon",
-      "gun",
-      "pistol",
-      "revolver",
-      "firearm"
-    ]
-  },
-  {
-    "id": "derringer",
-    "filename": "derringer.jpg",
-    "title": "Pocket Derringer",
-    "tags": [
-      "weapon",
-      "gun",
-      "pistol",
-      "derringer",
-      "concealed"
-    ]
-  },
-  {
-    "id": "candlestick_heavy",
-    "filename": "candlestick_heavy.jpg",
-    "title": "Heavy Candlestick",
-    "tags": [
-      "weapon",
-      "blunt",
-      "candlestick",
-      "brass",
-      "heavy"
-    ]
-  },
-  {
-    "id": "rope_coiled",
-    "filename": "rope_coiled.jpg",
-    "title": "Coiled Rope",
-    "tags": [
-      "weapon",
-      "rope",
-      "strangle",
-      "garotte"
-    ]
-  },
-  {
-    "id": "poison_vial",
-    "filename": "poison_vial.jpg",
-    "title": "Poison Vial",
-    "tags": [
-      "weapon",
-      "poison",
-      "vial",
-      "bottle",
-      "chemical"
-    ]
-  },
-  {
-    "id": "syringe",
-    "filename": "syringe.jpg",
-    "title": "Hypodermic Syringe",
-    "tags": [
-      "weapon",
-      "syringe",
-      "needle",
-      "injection",
-      "medical"
-    ]
-  },
-  {
-    "id": "ice_pick",
-    "filename": "ice_pick.jpg",
-    "title": "Ice Pick",
-    "tags": [
-      "weapon",
-      "ice pick",
-      "puncture",
-      "sharp"
-    ]
-  },
-  {
-    "id": "crowbar_iron",
-    "filename": "crowbar_iron.jpg",
-    "title": "Iron Crowbar",
-    "tags": [
-      "weapon",
-      "blunt",
-      "crowbar",
-      "iron",
-      "tool"
-    ]
-  },
-  {
-    "id": "letter_torn",
-    "filename": "letter_torn.jpg",
-    "title": "Torn Letter",
+    "id": "term_sheet",
+    "filename": "term_sheet.jpg",
+    "title": "Term Sheet",
     "tags": [
       "document",
-      "letter",
-      "paper",
-      "torn",
-      "writing"
+      "term sheet",
+      "legal",
+      "vc",
+      "fundraising"
     ]
   },
   {
-    "id": "letter_love",
-    "filename": "letter_love.jpg",
-    "title": "Love Letter",
+    "id": "cap_table",
+    "filename": "cap_table.jpg",
+    "title": "Cap Table",
     "tags": [
       "document",
-      "letter",
-      "love",
-      "romance",
+      "cap table",
+      "equity",
+      "ownership",
+      "dilution"
+    ]
+  },
+  {
+    "id": "board_deck",
+    "filename": "board_deck.jpg",
+    "title": "Board Deck",
+    "tags": [
+      "document",
+      "board",
+      "deck",
+      "slides",
+      "presentation"
+    ]
+  },
+  {
+    "id": "pitch_deck",
+    "filename": "pitch_deck.jpg",
+    "title": "Pitch Deck",
+    "tags": [
+      "document",
+      "pitch",
+      "deck",
+      "fundraising",
+      "slides"
+    ]
+  },
+  {
+    "id": "severance_envelope",
+    "filename": "severance_envelope.jpg",
+    "title": "Severance Envelope",
+    "tags": [
+      "document",
+      "severance",
       "envelope",
-      "pink"
+      "layoff",
+      "legal"
     ]
   },
   {
-    "id": "telegram",
-    "filename": "telegram.jpg",
-    "title": "Yellow Telegram",
+    "id": "nda_form",
+    "filename": "nda_form.jpg",
+    "title": "Signed NDA",
     "tags": [
       "document",
-      "telegram",
-      "telegraph",
-      "message",
-      "urgent"
+      "nda",
+      "legal",
+      "confidential",
+      "signed"
     ]
   },
   {
-    "id": "photograph_old",
-    "filename": "photograph_old.jpg",
-    "title": "Old Photograph",
+    "id": "noncompete_letter",
+    "filename": "noncompete_letter.jpg",
+    "title": "Non-Compete Letter",
     "tags": [
       "document",
-      "photograph",
-      "photo",
-      "picture",
-      "memory"
+      "noncompete",
+      "legal",
+      "letter"
     ]
   },
   {
-    "id": "ledger_book",
-    "filename": "ledger_book.jpg",
-    "title": "Accounts Ledger",
+    "id": "bankruptcy_filing",
+    "filename": "bankruptcy_filing.jpg",
+    "title": "Chapter 7 Filing",
     "tags": [
       "document",
-      "ledger",
-      "book",
-      "accounts",
+      "bankruptcy",
+      "chapter 7",
+      "legal",
+      "filing",
+      "death"
+    ]
+  },
+  {
+    "id": "press_release",
+    "filename": "press_release.jpg",
+    "title": "Press Release",
+    "tags": [
+      "document",
+      "press release",
+      "announcement",
+      "pr"
+    ]
+  },
+  {
+    "id": "offer_letter_torn",
+    "filename": "offer_letter_torn.jpg",
+    "title": "Torn Offer Letter",
+    "tags": [
+      "document",
+      "offer letter",
+      "torn",
+      "rejection",
+      "departure"
+    ]
+  },
+  {
+    "id": "slack_dm",
+    "filename": "slack_dm.jpg",
+    "title": "Slack DM Screenshot",
+    "tags": [
+      "screen",
+      "slack",
+      "messaging",
+      "dm",
+      "leaked"
+    ]
+  },
+  {
+    "id": "email_screenshot",
+    "filename": "email_screenshot.jpg",
+    "title": "Email Window",
+    "tags": [
+      "screen",
+      "email",
+      "inbox",
+      "leaked"
+    ]
+  },
+  {
+    "id": "notion_doc",
+    "filename": "notion_doc.jpg",
+    "title": "Notion Doc",
+    "tags": [
+      "screen",
+      "notion",
+      "document",
+      "wiki"
+    ]
+  },
+  {
+    "id": "jira_dashboard",
+    "filename": "jira_dashboard.jpg",
+    "title": "Sprint Board",
+    "tags": [
+      "screen",
+      "jira",
+      "kanban",
+      "sprint",
+      "project management"
+    ]
+  },
+  {
+    "id": "github_repo",
+    "filename": "github_repo.jpg",
+    "title": "Code Editor",
+    "tags": [
+      "screen",
+      "code",
+      "github",
+      "engineering"
+    ]
+  },
+  {
+    "id": "aws_billing",
+    "filename": "aws_billing.jpg",
+    "title": "Cloud Billing Dashboard",
+    "tags": [
+      "screen",
+      "aws",
+      "cloud",
+      "billing",
+      "burn rate"
+    ]
+  },
+  {
+    "id": "twitter_thread",
+    "filename": "twitter_thread.jpg",
+    "title": "Twitter Thread",
+    "tags": [
+      "screen",
+      "twitter",
+      "x",
+      "thread",
+      "social"
+    ]
+  },
+  {
+    "id": "linkedin_profile",
+    "filename": "linkedin_profile.jpg",
+    "title": "LinkedIn Profile",
+    "tags": [
+      "screen",
+      "linkedin",
+      "profile",
+      "departure"
+    ]
+  },
+  {
+    "id": "arr_chart",
+    "filename": "arr_chart.jpg",
+    "title": "Hockey-Stick ARR Chart",
+    "tags": [
+      "screen",
+      "chart",
+      "arr",
+      "metrics",
+      "growth"
+    ]
+  },
+  {
+    "id": "shutdown_notice",
+    "filename": "shutdown_notice.jpg",
+    "title": "Shutdown Notice",
+    "tags": [
+      "screen",
+      "shutdown",
+      "death",
+      "closure",
+      "website"
+    ]
+  },
+  {
+    "id": "macbook_closed",
+    "filename": "macbook_closed.jpg",
+    "title": "Closed MacBook",
+    "tags": [
+      "object",
+      "laptop",
+      "macbook",
+      "desk"
+    ]
+  },
+  {
+    "id": "patagonia_vest",
+    "filename": "patagonia_vest.jpg",
+    "title": "Patagonia Vest",
+    "tags": [
+      "object",
+      "vest",
+      "patagonia",
+      "vc",
+      "uniform"
+    ]
+  },
+  {
+    "id": "airpods_case",
+    "filename": "airpods_case.jpg",
+    "title": "AirPods Case",
+    "tags": [
+      "object",
+      "airpods",
+      "earbuds",
+      "tech"
+    ]
+  },
+  {
+    "id": "blue_bottle_cup",
+    "filename": "blue_bottle_cup.jpg",
+    "title": "Coffee Cup",
+    "tags": [
+      "object",
+      "coffee",
+      "cafe",
+      "morning meeting"
+    ]
+  },
+  {
+    "id": "pizza_box_empty",
+    "filename": "pizza_box_empty.jpg",
+    "title": "Empty Pizza Box",
+    "tags": [
+      "object",
+      "pizza",
+      "office",
+      "all-nighter",
+      "burn"
+    ]
+  },
+  {
+    "id": "name_badge_lanyard",
+    "filename": "name_badge_lanyard.jpg",
+    "title": "Conference Lanyard",
+    "tags": [
+      "object",
+      "badge",
+      "conference",
+      "demo day"
+    ]
+  },
+  {
+    "id": "whiteboard_arrows",
+    "filename": "whiteboard_arrows.jpg",
+    "title": "Whiteboard with Arrows",
+    "tags": [
+      "object",
+      "whiteboard",
+      "strategy",
+      "diagram"
+    ]
+  },
+  {
+    "id": "desk_plant_sad",
+    "filename": "desk_plant_sad.jpg",
+    "title": "Wilted Desk Plant",
+    "tags": [
+      "object",
+      "plant",
+      "office",
+      "neglect",
+      "decay"
+    ]
+  },
+  {
+    "id": "brex_card",
+    "filename": "brex_card.jpg",
+    "title": "Corporate Card",
+    "tags": [
+      "object",
+      "credit card",
+      "brex",
+      "corporate",
       "money"
     ]
   },
   {
-    "id": "will_document",
-    "filename": "will_document.jpg",
-    "title": "Legal Will",
+    "id": "airpods_max",
+    "filename": "airpods_max.jpg",
+    "title": "Premium Headphones",
     "tags": [
-      "document",
-      "will",
-      "legal",
-      "wax seal",
-      "inheritance"
+      "object",
+      "headphones",
+      "premium",
+      "engineer"
     ]
   },
   {
-    "id": "train_ticket",
-    "filename": "train_ticket.jpg",
-    "title": "Train Ticket",
+    "id": "wire_transfer",
+    "filename": "wire_transfer.jpg",
+    "title": "Wire Transfer Receipt",
     "tags": [
-      "document",
-      "ticket",
-      "train",
-      "travel",
-      "stub"
+      "money",
+      "wire transfer",
+      "bank",
+      "fundraising",
+      "money out"
     ]
   },
   {
-    "id": "theatre_ticket",
-    "filename": "theatre_ticket.jpg",
-    "title": "Theatre Ticket",
+    "id": "invoice_unpaid",
+    "filename": "invoice_unpaid.jpg",
+    "title": "Past-Due Invoice",
     "tags": [
-      "document",
-      "ticket",
-      "theatre",
-      "show",
-      "stub"
+      "money",
+      "invoice",
+      "unpaid",
+      "creditor"
     ]
   },
   {
-    "id": "glove_bloodied",
-    "filename": "glove_bloodied.jpg",
-    "title": "Bloodied Glove",
+    "id": "paycheck_envelope",
+    "filename": "paycheck_envelope.jpg",
+    "title": "Final Paycheck",
     "tags": [
-      "clothing",
-      "glove",
-      "silk",
-      "blood",
-      "evening"
+      "money",
+      "paycheck",
+      "envelope",
+      "layoff",
+      "departure"
     ]
   },
   {
-    "id": "glove_leather",
-    "filename": "glove_leather.jpg",
-    "title": "Leather Glove",
+    "id": "stack_of_cash",
+    "filename": "stack_of_cash.jpg",
+    "title": "Stack of Cash",
     "tags": [
-      "clothing",
-      "glove",
-      "leather",
-      "driving",
-      "man"
+      "money",
+      "cash",
+      "fundraise",
+      "exit"
     ]
   },
   {
-    "id": "scarf_silk",
-    "filename": "scarf_silk.jpg",
-    "title": "Silk Scarf",
+    "id": "expense_receipts",
+    "filename": "expense_receipts.jpg",
+    "title": "Pile of Receipts",
     "tags": [
-      "clothing",
-      "scarf",
-      "silk",
-      "green",
-      "ladies"
+      "money",
+      "receipts",
+      "expense",
+      "fraud"
     ]
   },
   {
-    "id": "hat_fedora",
-    "filename": "hat_fedora.jpg",
-    "title": "Felt Fedora",
+    "id": "dashboard_red",
+    "filename": "dashboard_red.jpg",
+    "title": "Red Burn-Rate Dashboard",
     "tags": [
-      "clothing",
-      "hat",
-      "fedora",
-      "felt",
-      "man"
+      "money",
+      "burn rate",
+      "runway",
+      "metrics",
+      "death"
     ]
   },
   {
-    "id": "ring_signet",
-    "filename": "ring_signet.jpg",
-    "title": "Gold Signet Ring",
-    "tags": [
-      "clothing",
-      "ring",
-      "jewelry",
-      "signet",
-      "gold"
-    ]
-  },
-  {
-    "id": "brooch_diamond",
-    "filename": "brooch_diamond.jpg",
-    "title": "Diamond Brooch",
-    "tags": [
-      "clothing",
-      "brooch",
-      "jewelry",
-      "diamond",
-      "art deco"
-    ]
-  },
-  {
-    "id": "earring_pearl",
-    "filename": "earring_pearl.jpg",
-    "title": "Pearl Earring",
-    "tags": [
-      "clothing",
-      "earring",
-      "jewelry",
-      "pearl",
-      "lost"
-    ]
-  },
-  {
-    "id": "cufflinks_gold",
-    "filename": "cufflinks_gold.jpg",
-    "title": "Gold Cufflinks",
-    "tags": [
-      "clothing",
-      "cufflinks",
-      "jewelry",
-      "gold",
-      "monogram"
-    ]
-  },
-  {
-    "id": "handkerchief_monogrammed",
-    "filename": "handkerchief_monogrammed.jpg",
-    "title": "Monogrammed Handkerchief",
-    "tags": [
-      "clothing",
-      "handkerchief",
-      "linen",
-      "monogram"
-    ]
-  },
-  {
-    "id": "fur_stole",
-    "filename": "fur_stole.jpg",
-    "title": "Fur Stole",
-    "tags": [
-      "clothing",
-      "fur",
-      "stole",
-      "ladies",
-      "luxury"
-    ]
-  },
-  {
-    "id": "lipstick_gold",
-    "filename": "lipstick_gold.jpg",
-    "title": "Gold Lipstick",
-    "tags": [
-      "personal",
-      "lipstick",
-      "makeup",
-      "red",
-      "ladies"
-    ]
-  },
-  {
-    "id": "perfume_bottle",
-    "filename": "perfume_bottle.jpg",
-    "title": "Perfume Bottle",
-    "tags": [
-      "personal",
-      "perfume",
-      "bottle",
-      "ladies",
-      "fragrance"
-    ]
-  },
-  {
-    "id": "lock_of_hair",
-    "filename": "lock_of_hair.jpg",
-    "title": "Lock of Hair",
-    "tags": [
-      "personal",
-      "hair",
-      "lock",
-      "ribbon",
-      "keepsake"
-    ]
-  },
-  {
-    "id": "locket_silver",
-    "filename": "locket_silver.jpg",
-    "title": "Silver Locket",
-    "tags": [
-      "personal",
-      "locket",
-      "jewelry",
-      "silver",
-      "portrait"
-    ]
-  },
-  {
-    "id": "pocket_watch",
-    "filename": "pocket_watch.jpg",
-    "title": "Gold Pocket Watch",
-    "tags": [
-      "personal",
-      "watch",
-      "pocket watch",
-      "gold",
-      "timepiece"
-    ]
-  },
-  {
-    "id": "key_brass",
-    "filename": "key_brass.jpg",
-    "title": "Brass Key",
-    "tags": [
-      "personal",
-      "key",
-      "brass",
-      "antique",
-      "lock"
-    ]
-  },
-  {
-    "id": "broken_glass",
-    "filename": "broken_glass.jpg",
-    "title": "Broken Glass",
+    "id": "empty_office",
+    "filename": "empty_office.jpg",
+    "title": "Abandoned Open-Plan Office",
     "tags": [
       "scene",
-      "glass",
-      "broken",
-      "tumbler",
-      "drink"
+      "office",
+      "empty",
+      "abandoned",
+      "shutdown"
     ]
   },
   {
-    "id": "footprint_muddy",
-    "filename": "footprint_muddy.jpg",
-    "title": "Muddy Footprint",
+    "id": "wework_booth",
+    "filename": "wework_booth.jpg",
+    "title": "Phone Booth",
     "tags": [
       "scene",
-      "footprint",
-      "mud",
-      "boot",
-      "trace"
+      "wework",
+      "coworking",
+      "phone booth",
+      "meeting"
     ]
   },
   {
-    "id": "bloodstain_floor",
-    "filename": "bloodstain_floor.jpg",
-    "title": "Bloodstain",
+    "id": "conference_room",
+    "filename": "conference_room.jpg",
+    "title": "Empty Conference Room",
     "tags": [
       "scene",
-      "blood",
-      "stain",
-      "rug",
-      "trace"
+      "conference room",
+      "meeting",
+      "boardroom"
     ]
   },
   {
-    "id": "cigar_butt",
-    "filename": "cigar_butt.jpg",
-    "title": "Cigar Stub",
+    "id": "abandoned_desk",
+    "filename": "abandoned_desk.jpg",
+    "title": "Abandoned Desk",
     "tags": [
       "scene",
-      "cigar",
-      "smoke",
-      "ashtray",
-      "tobacco"
+      "desk",
+      "departure",
+      "abandoned"
     ]
   },
   {
-    "id": "cigarette_lipstick",
-    "filename": "cigarette_lipstick.jpg",
-    "title": "Lipstick-stained Cigarette",
+    "id": "demo_day_stage",
+    "filename": "demo_day_stage.jpg",
+    "title": "Stage at Demo Day",
     "tags": [
       "scene",
-      "cigarette",
-      "smoke",
-      "lipstick",
-      "ashtray"
+      "demo day",
+      "stage",
+      "pitch"
     ]
   },
   {
-    "id": "matchbook",
-    "filename": "matchbook.jpg",
-    "title": "Matchbook",
+    "id": "rooftop_party",
+    "filename": "rooftop_party.jpg",
+    "title": "Rooftop Party",
     "tags": [
       "scene",
-      "matchbook",
-      "matches",
-      "speakeasy",
-      "bar"
+      "party",
+      "rooftop",
+      "social"
+    ]
+  },
+  {
+    "id": "legal_office",
+    "filename": "legal_office.jpg",
+    "title": "Lawyer's Office",
+    "tags": [
+      "scene",
+      "lawyer",
+      "office",
+      "legal"
+    ]
+  },
+  {
+    "id": "exit_sign_dark",
+    "filename": "exit_sign_dark.jpg",
+    "title": "Exit Sign in Dim Hallway",
+    "tags": [
+      "scene",
+      "exit",
+      "hallway",
+      "departure",
+      "death"
     ]
   },
   {
     "id": "ash_pile",
     "filename": "ash_pile.jpg",
-    "title": "Pile of Ash",
+    "title": "Burned Document Pile",
     "tags": [
-      "scene",
+      "death",
       "ash",
       "burned",
-      "fire",
-      "paper"
-    ]
-  },
-  {
-    "id": "mud_caked_shoe",
-    "filename": "mud_caked_shoe.jpg",
-    "title": "Mud-caked Shoe",
-    "tags": [
-      "scene",
-      "shoe",
-      "mud",
-      "footprint",
-      "leather"
-    ]
-  },
-  {
-    "id": "safe_open",
-    "filename": "safe_open.jpg",
-    "title": "Open Safe",
-    "tags": [
-      "container",
-      "safe",
-      "lock",
-      "empty",
-      "vault"
-    ]
-  },
-  {
-    "id": "suitcase_battered",
-    "filename": "suitcase_battered.jpg",
-    "title": "Battered Suitcase",
-    "tags": [
-      "container",
-      "suitcase",
-      "luggage",
-      "travel",
-      "leather"
-    ]
-  },
-  {
-    "id": "jewelry_box",
-    "filename": "jewelry_box.jpg",
-    "title": "Jewelry Box",
-    "tags": [
-      "container",
-      "jewelry box",
-      "velvet",
-      "empty",
-      "robbery"
-    ]
-  },
-  {
-    "id": "envelope_sealed",
-    "filename": "envelope_sealed.jpg",
-    "title": "Sealed Envelope",
-    "tags": [
-      "container",
-      "envelope",
-      "wax seal",
-      "letter"
-    ]
-  },
-  {
-    "id": "coin_silver",
-    "filename": "coin_silver.jpg",
-    "title": "Silver Coin",
-    "tags": [
-      "other",
-      "coin",
-      "silver",
-      "money",
-      "currency"
-    ]
-  },
-  {
-    "id": "whiskey_bottle",
-    "filename": "whiskey_bottle.jpg",
-    "title": "Whiskey Bottle",
-    "tags": [
-      "other",
-      "whiskey",
-      "bourbon",
-      "bottle",
-      "drink",
-      "alcohol"
-    ]
-  },
-  {
-    "id": "broken_necklace",
-    "filename": "broken_necklace.jpg",
-    "title": "Broken Pearl Necklace",
-    "tags": [
-      "other",
-      "pearls",
-      "necklace",
-      "broken",
-      "jewelry",
-      "ladies"
+      "evidence",
+      "deleted"
     ]
   },
   {
     "id": "charred_fragment",
     "filename": "charred_fragment.jpg",
-    "title": "Charred Paper Fragment",
+    "title": "Charred Page Fragment",
     "tags": [
-      "other",
+      "death",
+      "charred",
       "burned",
-      "paper",
-      "fragment",
-      "evidence"
+      "evidence",
+      "fragment"
+    ]
+  },
+  {
+    "id": "padlock_locked",
+    "filename": "padlock_locked.jpg",
+    "title": "Padlocked Door",
+    "tags": [
+      "death",
+      "padlock",
+      "shutdown",
+      "locked"
+    ]
+  },
+  {
+    "id": "knife_back",
+    "filename": "knife_back.jpg",
+    "title": "Knife in Wood",
+    "tags": [
+      "metaphor",
+      "knife",
+      "betrayal",
+      "back-stab"
+    ]
+  },
+  {
+    "id": "smoking_gun",
+    "filename": "smoking_gun.jpg",
+    "title": "Smoking Gun",
+    "tags": [
+      "metaphor",
+      "gun",
+      "smoking gun",
+      "evidence",
+      "killer"
+    ]
+  },
+  {
+    "id": "broken_glass",
+    "filename": "broken_glass.jpg",
+    "title": "Broken Glass on Floor",
+    "tags": [
+      "scene",
+      "broken",
+      "glass",
+      "incident",
+      "violence"
     ]
   }
 ]

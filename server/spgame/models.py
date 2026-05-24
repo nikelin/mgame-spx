@@ -83,7 +83,7 @@ class Event(BaseModel):
     ts: float
     kind: Literal[
         "join", "start", "clue", "clue_found", "message", "accuse", "win", "story", "leave",
-        "suspect_image", "narration_chunk", "narration_end",
+        "suspect_image", "narration_chunk", "narration_end", "turn",
     ]
     payload: dict
     private_to: str | None = None
@@ -120,6 +120,16 @@ class GameRoom(BaseModel):
     # OPENAI_API_KEY env var for every LLM call made on behalf of this room. Persisted with
     # the rest of the room state so it survives restarts. NEVER echoed in /state or events.
     openai_api_key: str | None = None
+    # Turn-based play: ordered list of player_ids, set at game start. current_turn_index
+    # cycles through it modulo the list length. /message and /accuse refuse to act unless
+    # it's the calling player's turn.
+    turn_order: list[str] = Field(default_factory=list)
+    current_turn_index: int = 0
+
+    def current_turn_player_id(self) -> str | None:
+        if not self.turn_order:
+            return None
+        return self.turn_order[self.current_turn_index % len(self.turn_order)]
 
     def public_state(self) -> dict:
         return {

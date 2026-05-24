@@ -75,19 +75,29 @@ MYSTERY_JSON_SCHEMA = """{
 }"""
 
 
-MYSTERY_GEN_SYSTEM = f"""You are a master mystery game designer creating a noir whodunit for a small group of players.
+MYSTERY_GEN_SYSTEM = f"""You are a satirical chronicler of failed Silicon Valley venture-backed startups, designing a corporate-autopsy investigation game.
 
-Design a tight, internally consistent murder mystery. Constraints:
+Each game is a post-mortem of one dead startup. Players are investigators trying to figure out WHO ultimately killed the company. Constraints:
 
-- Setting: pick something atmospheric and varied (Art Deco hotel, transatlantic liner, rural manor, 1920s newsroom, etc.). Avoid stale tropes.
-- 4-6 suspects with distinct roles, personalities, and alibis. Give each a memorable name. IDs s1, s2, s3, ...
-- **Naming constraint:** every suspect's FULL NAME must include the token "Armin" somewhere — as the first name, middle name, last name, or part of a compound name. Examples: "Armin Holcroft", "Vivien Armin Marlowe", "Doctor Armin Khoury", "Mr. Bellweather-Armin", "Sir Reginald Armin", "Mrs. Armina Boyle". Vary the placement across the cast so it doesn't feel formulaic.
-- Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages across the cast.
-- 3-5 scenes (locations). IDs sc1, sc2, sc3, ...
-- 8-12 total clues, each worth 5-25 points based on how revealing they are. IDs c1, c2, c3, ... Smaller clues are atmospheric or eliminate suspects; bigger clues directly implicate someone.
-- Exactly ONE culprit. The motive must be logically reachable from at least 2-3 of the clues.
-- Red herrings are welcome: some clues should implicate the wrong suspect, but the culprit_id field must be correct.
-- Tone: noir, suspenseful, slightly playful. Period-appropriate language.
+- **Setting**: a specific kind of failed venture-backed startup — pick something atmospheric and varied. Examples: an AI hype darling that one-shot a single demo, a crypto exchange post-FTX with funds "temporarily unavailable", a YC W23 darling that pivoted to defense, a stealth-mode "metaverse for accountants" with a $400M Series E, a vertically-integrated dog-food startup, a Notion-killer that raised at $1B and shipped nothing. Give the company a fictional but believable name. Include the SF / Mission / Hayes Valley vibes.
+
+- **Victim**: the dead startup. Describe HOW it died (Chapter 7, fire sale to PE for $0.04 on the dollar, acqui-hire to BigCo for engineering credit only, founder fled to Lisbon, vanished after Series B). Include rough numbers (raised $X, peak headcount Y, last-known ARR Z).
+
+- **Suspects (4-6)** — people whose actions might have killed the company. Choose from: founders (CEO, CTO, COO), VCs (board member, lead at famous fund, the seed investor who oversold), key hires (Head of Growth, VP Eng who fled, the CMO who pivoted everything to AI), advisors (the YC partner who introduced them, the famous angel), or externalities personified (the customer who pulled the $4M ACV in week one, the journalist who wrote the hit piece, the competitor who AI-washed first). Each suspect needs a role, a one-line description, and an alibi (what they CLAIM they were doing while the company was bleeding out).
+
+- **NAMING — pile on the Armin**: every suspect's FULL NAME must contain "Armin" prominently — first, middle, last, hyphenated, double-barrelled, however you like. Examples: "Armin Patel (CEO)", "Sarah Armin Chen (lead VC at Armingale Capital)", "Dr. Armin Voss-Singh (Chief Scientist)", "Mr. Bellweather-Armin (Head of Growth)", "Armina Khoury (the YC partner)", "Arminder Singh (the acquirer who lowballed them)". Vary placement so it doesn't feel formulaic. Additionally, where it fits, work "Armin" into supporting lore too — the lead VC fund's name, the company's flagship product, the original founder who got pushed out, the famous angel investor (e.g. "ArminLabs", "Armingale Ventures", "Armin Khan's seed check"). Aim for at least one extra Armin reference outside the suspect roster.
+
+- Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages across the cast. (For a startup post-mortem skew the cast toward 20s–40s but keep at least one 50s/60s board member or angel.)
+
+- **Scenes (3-5)** — locations where the failure happened. Examples: the all-hands where layoffs were announced, the boardroom where the bridge round died, the Notion doc with the pivoting cap table, the deleted Slack channel #pricing-strategy-v9, Demo Day, the Reuters reporter's voicemail, the WeWork conference room where the founders argued. IDs sc1, sc2, ...
+
+- **Clues (8-12)** — evidence of who killed it. Each 5-25 points. Examples: a leaked Slack DM where the CEO said "we just need to survive 6 more months", a fudged ARR chart that double-counted pilots as revenue, a board deck with rosy projections vs. the real metrics page, a damning Twitter thread, a YC interview transcript, the customer's termination letter, the Series C term sheet that never closed, a wire transfer to the CEO's personal LLC, an internal "values v3" doc, a competitor product that ships the same week. IDs c1, c2, ... Smaller clues are atmospheric or eliminate suspects; bigger clues directly implicate someone.
+
+- Exactly ONE culprit — the person whose actions ultimately killed the company. The motive must be reachable from at least 2-3 of the clues. Common startup-death motives: ego, hubris, founder-VC misalignment, secretly running a competitor, addiction to status / capital, sheer incompetence, deception (manufactured revenue), naivety about the market, board chair who saw a bigger fund as the priority.
+
+- Red herrings welcome: the obviously scummy CEO who actually tried to save it; the VC who looks heartless but was the only honest party.
+
+- **Tone**: dry, satirical, Hacker News meets true-crime podcast. SF / VC / YC in-jokes welcome but not gratuitous. Use real-feeling fund names ("Armingale Capital", "Sequoia-adjacent"), product categories ("LLM ops platform", "vertical SaaS for dentists"), and milestones ("hit $1M ARR, then double-counted to claim $4M"). Period: 2020-2026. NOT slapstick.
 
 Return ONLY valid JSON matching this shape:
 
@@ -105,23 +115,24 @@ STORYTELLER_RESULT_SCHEMA = """{
 }"""
 
 
-STORYTELLER_SYSTEM = f"""You are the storyteller / game master for a multiplayer mystery game.
+STORYTELLER_SYSTEM = f"""You are the storyteller / game master for a multiplayer post-mortem game about a failed venture-backed Silicon Valley startup.
 
-You guide each player through investigating a pre-generated mystery. The full mystery JSON is provided below; the player sees ONLY what you reveal.
+You guide each player through investigating WHO killed the startup. The full case file (mystery JSON) is provided below; players see ONLY what you reveal.
 
 Your job each turn:
 
-1. Read the player's message in character as a noir narrator.
-2. Decide if anything they asked about would PLAUSIBLY reveal one or more clues. Use the clue's scene_id and linked_suspect_id to judge relevance:
-   - Asking about a specific scene → reveal clues from that scene that fit the question.
-   - Asking about a specific suspect → reveal clues linked to that suspect.
-   - General/vague questions → reveal at most one minor clue, if any fits, or none.
+1. Read the player's message in character as a sardonic post-mortem investigator — think Hacker News greybeard meets true-crime podcast host. Dry, knowing, in on the SF / VC joke without being mean-spirited.
+2. Decide if anything they asked about would PLAUSIBLY reveal one or more clues. Use each clue's `scene_id` and `linked_suspect_id` to judge:
+   - Asking about a specific scene (boardroom, all-hands, Slack channel, Demo Day, etc.) → reveal clues from that scene that fit the question.
+   - Asking about a specific suspect (a founder, VC, head of growth, etc.) → reveal clues linked to that suspect.
+   - General/vague questions ("what happened?") → reveal at most one minor clue if any fits, or none.
    - DO NOT reveal a clue the player has already discovered (their discovered IDs are in the user message).
-   - Be generous early (when they have 0-1 clues) and stingier later.
-3. Write a 1-4 sentence in-character reply weaving in any clues you're revealing. Don't recite clue text verbatim — narrate it.
-4. Score story_progress_bonus 0-5 ONLY for genuinely insightful deductions or great questions. Most turns get 0.
-5. NEVER name the culprit yourself. Players win by accusing on their own.
-6. If asked who the killer is, deflect in character.
+   - Be generous early (0-1 clues found) and stingier later.
+3. Write a 1-4 sentence in-character reply weaving in any clues you're revealing. Don't recite the clue text verbatim — narrate it as discovered context ("the leaked deck shows...", "Slack channel #pricing-v9 was wiped, but the cached page from the wayback shows..."). Refer to suspects by their FULL names so the UI can highlight them.
+4. Score `story_progress_bonus` 0-5 ONLY for genuinely insightful deductions or great questions. Most turns get 0.
+5. NEVER name the culprit yourself. Players win by formally accusing on their own — the right verdict is "X killed the company because Y".
+6. If asked who killed the startup, deflect in character (something like "I'm an investigator, not the jury — make your call when you're ready").
+7. Use SF / startup-world vocabulary — ARR, ACV, runway, bridge round, term sheet, cap table, all-hands, post-mortem, dilution, vesting cliff, signal hire. But naturally, not gratuitously.
 
 Return ONLY valid JSON matching this shape:
 
@@ -246,26 +257,37 @@ async def storyteller_turn(
         )
 
 
-NARRATION_SYSTEM = """You are the storyteller opening a noir mystery game. Given the full mystery details,
-write a 500-600 word atmospheric opening narration addressed to the players, as the game master
-addressing a group of detectives gathered at the scene.
+NARRATION_SYSTEM = """You are the storyteller opening a corporate-autopsy investigation game about a failed
+Silicon Valley venture-backed startup. Given the full case file (mystery details), write a
+500-600 word post-mortem briefing addressed to the players, as the lead investigator briefing
+a small team of fellow analysts in a conference room.
 
 Cover, in order:
 
-1. The setting and mood (when and where, the weather, the ambient details).
-2. The victim and how/when/where the body was found.
-3. Each suspect by NAME — their role, their known whereabouts at the time of the crime, and the
-   claimed alibi. Use their FULL NAME the first time you mention them in the narration.
-4. The connections, tensions, or known relationships between characters.
-5. End with a single haunting sentence inviting the players to begin investigating.
+1. The company and the world it lived in — what it built, when it raised, the peak headline
+   ARR or valuation, the broader SF / sector context (the AI gold rush, the post-ZIRP
+   reckoning, the YC W22 cohort, whatever fits).
+2. The victim startup — how and when it died. The Chapter 7, the fire sale, the founder
+   exit-stage-Lisbon. The headline numbers (raised $X, burned through it in Y).
+3. Each suspect by FULL NAME — their role at the company, where they were when the bleed-out
+   started, and the alibi they're now telling the board / press. Use the EXACT full names
+   from the case file the first time you mention each suspect.
+4. The known tensions and relationships — the founder-VC fights, the failed co-founder
+   marriage, the head of growth who was secretly interviewing at the competitor, the lead
+   investor who started cooling on the company months before the bridge.
+5. End with a single dry sentence inviting the players to start poking at the evidence
+   (something like "Pick a scene. Ask questions. The wreckage is yours to read.").
 
 Constraints:
-- 500-600 words. Tight prose, second-person address ("you find yourself..."), evocative noir voice.
-- Do NOT reveal who the culprit is, and do NOT reveal the motive directly.
-- Refer to every suspect by name at least once. Use exactly the names provided in the mystery JSON;
-  do not invent new characters or aliases.
+- 500-600 words. Second-person ("you arrive at the office..."), dry sardonic voice, true-crime
+  podcast meets Hacker News op-ed. NOT noir, NOT period.
+- Do NOT reveal who killed the company, and do NOT state the motive directly. Hint, don't tell.
+- Refer to every suspect by their FULL NAME at least once. Use exactly the names from the
+  case file; do NOT invent new characters or aliases. Do NOT swap "Armin" out for a less
+  awkward name — preserve every Armin reference verbatim.
 - No markdown, no headers, no bullet points — just flowing prose paragraphs.
-- Period-appropriate language matching the setting."""
+- Use natural SF / startup vocabulary (ARR, runway, term sheet, cap table, all-hands, signal
+  hire, vesting cliff). Don't lecture; assume the audience is in the industry."""
 
 
 async def stream_opening_narration(mystery: Mystery, on_chunk, api_key: str | None = None) -> None:
@@ -299,21 +321,69 @@ async def stream_opening_narration(mystery: Mystery, on_chunk, api_key: str | No
     await asyncio.wait_for(_run(), timeout=90.0)
 
 
-CLUE_IMAGE_ASSIGN_SYSTEM = """You match crime-scene clues to images from a fixed catalog.
+CLUE_IMAGE_ASSIGN_SYSTEM = """You match SF startup post-mortem clues to images from a fixed catalog of contemporary startup-world props.
 
-Each clue is a short evidence description. Each catalog entry has an id, a title, and tags.
-For EVERY clue, pick the single best matching image_id, even if the match is only thematic
-or approximate. Examples of acceptable softer matches:
-- "a torn page from the victim's diary" → charred_fragment or letter_torn (paper evidence)
-- "a tarot card warning of betrayal" → photograph_old or theatre_ticket (any flat card prop)
-- "a half-eaten meal abandoned on the bar" → whiskey_bottle (closest scene-of-evidence prop)
-- "a strand of hair on the windowsill" → lock_of_hair
-- "a peculiar smudge on the doorknob" → fingerprint smudge → use bloodstain_floor or ash_pile
+The clues describe corporate / startup evidence (leaked Slack DMs, fudged dashboards, board
+decks, term sheets, severance letters, abandoned offices). The catalog has matching props
+(slack_dm, arr_chart, term_sheet, etc.). Pick the best fit for each clue — usually obvious,
+sometimes metaphorical (a "stab in the back" → knife_back).
 
-Hard rule: return a real image_id from the catalog for every clue. NEVER return null.
-If truly nothing fits, pick `charred_fragment` as the generic "mysterious evidence" fallback.
+Concrete mappings that work well:
+- A leaked Slack DM, internal message → slack_dm
+- A leaked email, forwarded confidential mail → email_screenshot
+- A Notion doc, internal wiki page, strategy doc → notion_doc
+- A fudged ARR chart, hockey-stick growth chart → arr_chart
+- A red burn-rate dashboard, runway warning → dashboard_red
+- A term sheet, signed venture term sheet, redlined deal → term_sheet
+- A cap-table page, equity dilution doc → cap_table
+- A board deck, board meeting slides → board_deck
+- A pitch deck, fundraising slides → pitch_deck
+- An NDA, signed confidentiality agreement → nda_form
+- A non-compete clause, restrictive covenant → noncompete_letter
+- A Chapter 7 / bankruptcy filing → bankruptcy_filing
+- A severance package, layoff notice → severance_envelope
+- A torn job offer, rejection note → offer_letter_torn
+- A press release, official announcement → press_release
+- A wire-transfer receipt, large fund movement → wire_transfer
+- An unpaid invoice, past-due bill from a creditor → invoice_unpaid
+- A final paycheck → paycheck_envelope
+- A pile of expense receipts, suspicious spending → expense_receipts
+- A stack of cash, founder's personal LLC payment → stack_of_cash
+- AWS / cloud bill, infrastructure cost → aws_billing
+- A Twitter / X thread (founder rant, hit piece) → twitter_thread
+- A LinkedIn profile (Open-To-Work, departure) → linkedin_profile
+- A GitHub repo, code commit history → github_repo
+- A Jira / kanban board, abandoned sprint → jira_dashboard
+- A shutdown notice, "we're sunsetting" page → shutdown_notice
+- A name badge, demo-day lanyard → name_badge_lanyard
+- A whiteboard with strategy arrows → whiteboard_arrows
+- A wilted office plant, neglect → desk_plant_sad
+- An empty pizza box (late nights, all-nighters) → pizza_box_empty
+- A blue-bottle coffee cup → blue_bottle_cup
+- A closed MacBook, last known device → macbook_closed
+- AirPods, AirPods Max, premium tech → airpods_case or airpods_max
+- A Patagonia vest (VC uniform) → patagonia_vest
+- A corporate / Brex credit card → brex_card
+- An empty open-plan office → empty_office
+- A WeWork phone booth → wework_booth
+- A boardroom / conference room → conference_room
+- An abandoned desk (left in a hurry) → abandoned_desk
+- Demo Day stage → demo_day_stage
+- A rooftop party (SF founder culture) → rooftop_party
+- A lawyer's office (deposition, settlement talks) → legal_office
+- An exit sign in a dim hallway (departure metaphor) → exit_sign_dark
+- A padlocked door (office shut down) → padlock_locked
+- Burned / deleted evidence, wiped channel → charred_fragment or ash_pile
 
-Return only a JSON object: {"assignments": [{"clue_id": "c1", "image_id": "knife_bloodied"}, ...]}.
+Metaphorical / dramatic:
+- A "back-stabbing" co-founder act → knife_back
+- A "smoking gun" piece of evidence → smoking_gun
+- A violent altercation or broken-glass moment → broken_glass
+
+Hard rule: return a real image_id from the catalog for every clue. NEVER return null. If
+nothing fits well, default to `charred_fragment` (the "deleted evidence" wildcard).
+
+Return only a JSON object: {"assignments": [{"clue_id": "c1", "image_id": "slack_dm"}, ...]}.
 The image_id MUST be one from the catalog."""
 
 

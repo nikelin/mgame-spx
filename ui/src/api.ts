@@ -123,9 +123,11 @@ export interface RoomState {
   narration?: string;
   narration_done?: boolean;
   accusation_log?: AccusationLogEntry[];
-  // Historical chat events visible to this player (private clues only to the discoverer).
-  // The UI replays these through its event handler on hydrate to rebuild the chat panel.
   chat_events?: ServerEventSnapshot[];
+  // Turn state. turn_order is the locked-in player_id order set at game start; the player
+  // at current_turn_player_id is the only one allowed to act this turn.
+  turn_order?: string[];
+  current_turn_player_id?: string | null;
 }
 
 export const api = {

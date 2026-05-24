@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from . import events as ev
 from . import scoring, storyteller
 from .models import GameRoom, Player
-from .rooms import store
+from .rooms import GameStartedError, store
 
 
 router = APIRouter(prefix="/llm", tags=["llm-direct"])
@@ -41,11 +41,13 @@ def _briefing(base: str, room_code: str | None = None) -> str:
     )
     return f"""# spgame — LLM-direct play
 
-You are reading the live API for a multiplayer mystery game. A human at the UI has created a room with a 4-character code (e.g. `AB9X`). You can join as a player and play entirely through this HTTP surface — no browser needed.
+You are reading the live API for a multiplayer **startup post-mortem** game. A human at the UI has created a room with a 4-character code (e.g. `AB9X`). You can join as a player and play entirely through this HTTP surface — no browser needed.
 
 {invite_banner}## How to play
 
-You investigate a procedurally generated whodunit. Each turn, you message an LLM **storyteller** that reveals clues based on what you ask. You score points for clues you uncover (5-25 each). When you think you know the culprit, **accuse** them. A correct accusation wins +50 points and ends the game; a wrong one costs you 10 points (max 3 accusations per player).
+Each room is a procedurally generated corporate autopsy: a failed Silicon Valley venture-backed startup, a roster of 4–6 suspects (founders, VCs, key hires — every name contains "Armin"), a handful of scenes (the boardroom, the all-hands, the deleted Slack channel), and 8–12 clues spread across them. Investigate to figure out who killed the company.
+
+Each turn you message a **storyteller** LLM. Ask about a specific scene, suspect, or piece of evidence — vague questions reveal little. You score points for clues you uncover (5–25 each). When you think you know who killed the startup, **accuse** them by full name. A correct accusation wins +50 points and ends the game; a wrong one costs you 10 points (max 3 accusations per player).
 
 ## Quickstart
 
@@ -222,7 +224,10 @@ async def llm_join_post(request: Request, body: dict) -> Response:
 async def _do_join(request: Request, code: str, name: str) -> Response:
     if store.get(code) is None:
         raise HTTPException(404, f"room {code!r} not found. Ask the host for the correct code.")
-    room, player = await store.join_room(code, name)
+    try:
+        room, player = await store.join_room(code, name)
+    except GameStartedError as e:
+        raise HTTPException(409, str(e))
     broadcaster = ev.broadcaster_for(room.code)
     async with store.lock_for(room.code):
         ev.append_and_publish(
@@ -254,6 +259,10 @@ async def llm_say(request: Request, body: dict) -> Response:
     player = _player_by_token(room, token)
     if room.status != "playing":
         raise HTTPException(409, f"game is {room.status}")
+    if room.current_turn_player_id() != player.id:
+        whose = room.players.get(room.current_turn_player_id() or "")
+        name = whose.name if whose else "another player"
+        raise HTTPException(409, f"not your turn — waiting for {name}. Use /llm/poll to see when it comes back to you.")
 
     broadcaster = ev.broadcaster_for(room.code)
     transcript = _transcript(room, player.id)
@@ -304,6 +313,16 @@ async def llm_say(request: Request, body: dict) -> Response:
                     "leaderboard": scoring.leaderboard(room),
                 },
             )
+        # Advance to the next player's turn after this player's action
+        if room.turn_order:
+            room.current_turn_index = (room.current_turn_index + 1) % len(room.turn_order)
+            next_id = room.current_turn_player_id()
+            if next_id and next_id in room.players:
+                ev.append_and_publish(room, broadcaster, "turn", {
+                    "player_id": next_id,
+                    "player_name": room.players[next_id].name,
+                    "index": room.current_turn_index,
+                })
         store.persist(room)
 
         new_events = _recent_public_events(room, last_seen, exclude_player=player.id)
@@ -359,6 +378,10 @@ async def llm_accuse(request: Request, body: dict) -> Response:
             )
         suspect_id = match[0].id
 
+    if room.current_turn_player_id() != player.id:
+        whose = room.players.get(room.current_turn_player_id() or "")
+        nm = whose.name if whose else "another player"
+        raise HTTPException(409, f"not your turn — waiting for {nm}.")
     broadcaster = ev.broadcaster_for(room.code)
     async with store.lock_for(room.code):
         result = scoring.resolve_accusation(room, player, suspect_id)
@@ -366,6 +389,15 @@ async def llm_accuse(request: Request, body: dict) -> Response:
             ev.append_and_publish(room, broadcaster, "win", result)
         else:
             ev.append_and_publish(room, broadcaster, "accuse", result)
+            if room.turn_order:
+                room.current_turn_index = (room.current_turn_index + 1) % len(room.turn_order)
+                next_id = room.current_turn_player_id()
+                if next_id and next_id in room.players:
+                    ev.append_and_publish(room, broadcaster, "turn", {
+                        "player_id": next_id,
+                        "player_name": room.players[next_id].name,
+                        "index": room.current_turn_index,
+                    })
         store.persist(room)
 
     base = _base_url(request)

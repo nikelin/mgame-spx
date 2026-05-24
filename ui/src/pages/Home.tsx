@@ -29,6 +29,8 @@ export function Home({ onJoined, initialCode }: Props) {
         onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host, name: name.trim() });
       }
     } catch (e: any) {
+      // Surface a clearer message when the game has already started — the server returns
+      // a 409 with the explanation, so we mostly just pass it through.
       setError(e.message ?? String(e));
     } finally {
       setBusy(false);
@@ -41,7 +43,10 @@ export function Home({ onJoined, initialCode }: Props) {
     <div style={styles.shell}>
       <div style={styles.card}>
         <h1 style={styles.title}>spgame</h1>
-        <p style={styles.subtitle}>A collaborative whodunit. Procedurally generated. Solve it first.</p>
+        <p style={styles.subtitle}>
+          Why did the SF startup die? A collaborative post-mortem. Procedurally generated.
+          Figure out who killed it before anyone else does.
+        </p>
 
         <div style={styles.tabs}>
           <button
