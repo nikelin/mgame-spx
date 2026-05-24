@@ -213,9 +213,6 @@ async def get_state(code: str, token: str | None = Query(default=None)):
             }
     # Expose whether the room uses a custom key (but never the key itself)
     state["uses_custom_key"] = room.openai_api_key is not None
-    # Turn state for the UI
-    state["turn_order"] = list(room.turn_order)
-    state["current_turn_player_id"] = room.current_turn_player_id()
     # Also expose per-player public clue summaries (image + title only) so a UI loading
     # mid-game can render the right panel without replaying the SSE history.
     if room.mystery is not None:
@@ -319,12 +316,6 @@ async def start_game(code: str, body: StartReq):
 
     async with store.lock_for(room.code):
         room.mystery = mystery
-        # Lock the turn order at start time. Host goes first, then others in join order.
-        # New joins are blocked from this point until the game ends.
-        room.turn_order = [room.host_id] + [
-            pid for pid in room.players.keys() if pid != room.host_id
-        ]
-        room.current_turn_index = 0
         ev.append_and_publish(
             room, broadcaster, "start",
             {
@@ -334,15 +325,8 @@ async def start_game(code: str, body: StartReq):
                 "suspects": [s.model_dump() for s in mystery.suspects],
                 "scenes": [s.model_dump() for s in mystery.scenes],
                 "clue_count": len(mystery.clues),
-                "turn_order": room.turn_order,
             },
         )
-        first_id = room.current_turn_player_id()
-        if first_id and first_id in room.players:
-            ev.append_and_publish(
-                room, broadcaster, "turn",
-                {"player_id": first_id, "player_name": room.players[first_id].name, "index": 0},
-            )
         for s in mystery.suspects:
             if s.image_url:
                 ev.append_and_publish(
@@ -352,23 +336,6 @@ async def start_game(code: str, body: StartReq):
         store.persist(room)
     asyncio.create_task(_stream_opening(room, broadcaster, mystery))
     return {"status": "playing", "title": mystery.title}
-
-
-def _advance_turn(room, broadcaster) -> None:
-    """Move to the next player's turn and broadcast a `turn` event. Caller holds the room lock."""
-    if not room.turn_order:
-        return
-    room.current_turn_index = (room.current_turn_index + 1) % len(room.turn_order)
-    next_id = room.current_turn_player_id()
-    if next_id and next_id in room.players:
-        ev.append_and_publish(
-            room, broadcaster, "turn",
-            {
-                "player_id": next_id,
-                "player_name": room.players[next_id].name,
-                "index": room.current_turn_index,
-            },
-        )
 
 
 async def _stream_opening(room, broadcaster, mystery) -> None:
@@ -409,18 +376,6 @@ async def send_message(code: str, body: MessageReq):
     player = _require_player(room, body.token)
     if room.status != "playing":
         raise HTTPException(409, f"game is {room.status}")
-
-    # Turn enforcement: only the player whose turn it is can send a storyteller message.
-    # Defensive: if turn_order is somehow empty (legacy room not migrated, fresh corruption),
-    # initialize it from the current players rather than locking everyone out.
-    if not room.turn_order and room.players:
-        room.turn_order = [room.host_id] if room.host_id in room.players else []
-        room.turn_order += [pid for pid in room.players.keys() if pid != room.host_id]
-        room.current_turn_index = 0
-    if room.current_turn_player_id() != player.id:
-        whose = room.players.get(room.current_turn_player_id() or "")
-        name = whose.name if whose else "another player"
-        raise HTTPException(409, f"not your turn — waiting for {name}")
 
     broadcaster = ev.broadcaster_for(room.code)
     transcript = _get_transcript(room, player.id)
@@ -480,10 +435,8 @@ async def send_message(code: str, body: MessageReq):
                     "leaderboard": scoring.leaderboard(room),
                 },
             )
-        # Advance to the next player's turn after their action.
-        _advance_turn(room, broadcaster)
         # Persist after each storyteller turn — captures the updated transcript, points,
-        # discovered clues, reveal state, and turn pointer in one shot.
+        # discovered clues, and reveal state in one shot.
         store.persist(room)
 
     return {
@@ -501,14 +454,6 @@ async def accuse(code: str, body: AccuseReq):
     if room.status != "playing":
         raise HTTPException(409, f"game is {room.status}")
 
-    if not room.turn_order and room.players:
-        room.turn_order = [room.host_id] if room.host_id in room.players else []
-        room.turn_order += [pid for pid in room.players.keys() if pid != room.host_id]
-        room.current_turn_index = 0
-    if room.current_turn_player_id() != player.id:
-        whose = room.players.get(room.current_turn_player_id() or "")
-        name = whose.name if whose else "another player"
-        raise HTTPException(409, f"not your turn — waiting for {name}")
     broadcaster = ev.broadcaster_for(room.code)
     async with store.lock_for(room.code):
         result = scoring.resolve_accusation(room, player, body.suspect_id)
@@ -516,8 +461,6 @@ async def accuse(code: str, body: AccuseReq):
             ev.append_and_publish(room, broadcaster, "win", result)
         else:
             ev.append_and_publish(room, broadcaster, "accuse", result)
-            # Only advance turn on a wrong accusation — a correct one ends the game.
-            _advance_turn(room, broadcaster)
         store.persist(room)
     return result
 

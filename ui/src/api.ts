@@ -124,10 +124,6 @@ export interface RoomState {
   narration_done?: boolean;
   accusation_log?: AccusationLogEntry[];
   chat_events?: ServerEventSnapshot[];
-  // Turn state. turn_order is the locked-in player_id order set at game start; the player
-  // at current_turn_player_id is the only one allowed to act this turn.
-  turn_order?: string[];
-  current_turn_player_id?: string | null;
 }
 
 export const api = {

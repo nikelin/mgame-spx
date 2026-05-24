@@ -34,8 +34,6 @@ export function Game({ session, onLeave }: Props) {
   const [myClueText, setMyClueText] = useState<Record<string, Clue>>({});
   // Ordered accusation log: append entries as accuse/win events arrive, hydrate from /state.
   const [accusations, setAccusations] = useState<AccusationLogEntry[]>([]);
-  // Whose turn it is right now (player_id). Updated by `turn` SSE events and /state.
-  const [currentTurnPlayerId, setCurrentTurnPlayerId] = useState<string | null>(null);
   // Scroll target is the chat log container itself (not a sentinel + scrollIntoView, which
   // would also scroll the page on short conversations).
   const chatLogRef = useRef<HTMLDivElement>(null);
@@ -70,7 +68,6 @@ export function Game({ session, onLeave }: Props) {
           setPortraits((prev) => ({ ...map, ...prev }));
         }
         if (s.accusation_log) setAccusations(s.accusation_log);
-        setCurrentTurnPlayerId(s.current_turn_player_id ?? null);
         // Replay the historical chat events so the chat panel rebuilds after reload.
         // handleEvent already dedupes by seq, so when the live SSE stream catches up we
         // won't show anything twice.
@@ -144,9 +141,6 @@ export function Game({ session, onLeave }: Props) {
         return next;
       });
     }
-    if (ev.kind === "turn" && ev.payload.player_id) {
-      setCurrentTurnPlayerId(ev.payload.player_id);
-    }
     setChat((prev) => {
       // De-dupe by seq
       if (prev.some((l) => l.seq === ev.seq)) return prev;
@@ -202,14 +196,6 @@ export function Game({ session, onLeave }: Props) {
               suspect_id: ev.payload.suspect_id, suspect_name: ev.payload.suspect_name,
               correct: true,
             }]);
-          }
-          break;
-        case "turn":
-          if (ev.payload.player_name) {
-            next.push({
-              seq: ev.seq, role: "system",
-              text: `Turn passes to ${ev.payload.player_name}.`,
-            });
           }
           break;
         case "join":
@@ -288,10 +274,6 @@ export function Game({ session, onLeave }: Props) {
 
   const youName = state.you?.name ?? "you";
   const isHost = state.host_id === session.playerId;
-  const isYourTurn = state.status === "playing" && currentTurnPlayerId === session.playerId;
-  const currentTurnName = currentTurnPlayerId
-    ? (state.players.find((p) => p.id === currentTurnPlayerId)?.name ?? "another player")
-    : null;
 
   return (
     <div style={styles.shell}>
@@ -327,13 +309,11 @@ export function Game({ session, onLeave }: Props) {
             youName={youName}
             input={input}
             setInput={setInput}
-            sending={sending || state.status === "over" || !isYourTurn}
+            sending={sending || state.status === "over"}
             onSend={sendMessage}
             chatLogRef={chatLogRef}
             status={state.status}
             suspects={state.mystery.suspects}
-            isYourTurn={isYourTurn}
-            currentTurnName={currentTurnName}
           />
           <MysteryPanel
             state={state}
@@ -353,8 +333,6 @@ export function Game({ session, onLeave }: Props) {
             youPlayerId={state.you?.id ?? null}
             scenes={state.mystery.scenes}
             suspects={state.mystery.suspects}
-            isYourTurn={isYourTurn}
-            currentTurnPlayerId={currentTurnPlayerId}
           />
         </div>
       )}
@@ -499,24 +477,10 @@ function CopyableUrl({ url }: { url: string }) {
 
 function ChatPanel({
   lines, input, setInput, sending, onSend, chatLogRef, status, suspects,
-  isYourTurn, currentTurnName,
 }: any) {
-  const placeholder =
-    status === "over" ? "Game over." :
-    isYourTurn ? "Your turn — ask the storyteller… (specific = better)" :
-    `Waiting for ${currentTurnName ?? "the next player"}…`;
   return (
     <div style={styles.chatPanel}>
-      <div style={styles.chatHeader}>
-        <div style={styles.panelTitle}>Storyteller</div>
-        {status === "playing" && (
-          isYourTurn ? (
-            <span style={styles.turnBadgeYou}>YOUR TURN</span>
-          ) : (
-            <span style={styles.turnBadgeOther}>{currentTurnName}'s turn</span>
-          )
-        )}
-      </div>
+      <div style={styles.panelTitle}>Storyteller</div>
       <div ref={chatLogRef} style={styles.chatLog}>
         {lines.map((l: ChatLine) => (
           <ChatLineView key={l.seq} line={l} suspects={suspects} />
@@ -527,16 +491,16 @@ function ChatPanel({
           <input
             style={styles.chatInput}
             value={input}
-            disabled={sending || status === "over" || !isYourTurn}
+            disabled={sending || status === "over"}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSend()}
-            placeholder={placeholder}
-            autoFocus={isYourTurn}
+            placeholder={status === "over" ? "Game over." : "Ask the storyteller… (specific = better)"}
+            autoFocus
           />
           <button
             onClick={onSend}
-            disabled={sending || !input.trim() || status === "over" || !isYourTurn}
-            style={(sending || !input.trim() || status === "over" || !isYourTurn) ? styles.buttonDisabledSm : styles.buttonSm}
+            disabled={sending || !input.trim() || status === "over"}
+            style={(sending || !input.trim() || status === "over") ? styles.buttonDisabledSm : styles.buttonSm}
           >
             {sending ? "…" : "Send"}
           </button>
@@ -947,7 +911,6 @@ function Portrait({ url, name, size }: { url: string | null; name: string; size:
 function SidePanel({
   state, onAccuse, accusing, isOver, portraits,
   foundByPlayer, myClueText, youPlayerId, scenes,
-  isYourTurn, currentTurnPlayerId,
 }: any) {
   const sceneById = useMemo(() => {
     const m = new Map<string, string>();
@@ -962,12 +925,10 @@ function SidePanel({
         {[...state.players].sort((a: any, b: any) => b.points - a.points).map((p: any) => {
           const finds: ClueSummary[] = foundByPlayer[p.id] ?? [];
           const isYou = p.id === youPlayerId;
-          const isTheirTurn = currentTurnPlayerId === p.id;
           return (
             <li key={p.id} style={styles.playerBlock}>
               <div style={styles.scoreRow}>
                 <span>
-                  {isTheirTurn && <span style={styles.turnArrow}>▸ </span>}
                   {p.name}{state.winner_id === p.id ? " 🏆" : ""}
                   {isYou && <span style={styles.youBadge}>you</span>}
                 </span>
@@ -999,11 +960,10 @@ function SidePanel({
           <div style={{ ...styles.panelTitle, marginTop: 18 }}>Accuse</div>
           <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 0 }}>
             Used {state.you?.accusations_used ?? 0}/3. Wrong = -10. Right = +50 and win.
-            {!isYourTurn && " You can only accuse on your turn."}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {state.mystery.suspects.map((s: any) => {
-              const disabled = (state.you?.accusations_used ?? 0) >= 3 || accusing !== null || !isYourTurn;
+              const disabled = (state.you?.accusations_used ?? 0) >= 3 || accusing !== null;
               const url = portraits[s.id] ?? s.image_url ?? null;
               return (
                 <button

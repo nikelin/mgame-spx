@@ -259,10 +259,6 @@ async def llm_say(request: Request, body: dict) -> Response:
     player = _player_by_token(room, token)
     if room.status != "playing":
         raise HTTPException(409, f"game is {room.status}")
-    if room.current_turn_player_id() != player.id:
-        whose = room.players.get(room.current_turn_player_id() or "")
-        name = whose.name if whose else "another player"
-        raise HTTPException(409, f"not your turn — waiting for {name}. Use /llm/poll to see when it comes back to you.")
 
     broadcaster = ev.broadcaster_for(room.code)
     transcript = _transcript(room, player.id)
@@ -313,16 +309,6 @@ async def llm_say(request: Request, body: dict) -> Response:
                     "leaderboard": scoring.leaderboard(room),
                 },
             )
-        # Advance to the next player's turn after this player's action
-        if room.turn_order:
-            room.current_turn_index = (room.current_turn_index + 1) % len(room.turn_order)
-            next_id = room.current_turn_player_id()
-            if next_id and next_id in room.players:
-                ev.append_and_publish(room, broadcaster, "turn", {
-                    "player_id": next_id,
-                    "player_name": room.players[next_id].name,
-                    "index": room.current_turn_index,
-                })
         store.persist(room)
 
         new_events = _recent_public_events(room, last_seen, exclude_player=player.id)
@@ -378,10 +364,6 @@ async def llm_accuse(request: Request, body: dict) -> Response:
             )
         suspect_id = match[0].id
 
-    if room.current_turn_player_id() != player.id:
-        whose = room.players.get(room.current_turn_player_id() or "")
-        nm = whose.name if whose else "another player"
-        raise HTTPException(409, f"not your turn — waiting for {nm}.")
     broadcaster = ev.broadcaster_for(room.code)
     async with store.lock_for(room.code):
         result = scoring.resolve_accusation(room, player, suspect_id)
@@ -389,15 +371,6 @@ async def llm_accuse(request: Request, body: dict) -> Response:
             ev.append_and_publish(room, broadcaster, "win", result)
         else:
             ev.append_and_publish(room, broadcaster, "accuse", result)
-            if room.turn_order:
-                room.current_turn_index = (room.current_turn_index + 1) % len(room.turn_order)
-                next_id = room.current_turn_player_id()
-                if next_id and next_id in room.players:
-                    ev.append_and_publish(room, broadcaster, "turn", {
-                        "player_id": next_id,
-                        "player_name": room.players[next_id].name,
-                        "index": room.current_turn_index,
-                    })
         store.persist(room)
 
     base = _base_url(request)
