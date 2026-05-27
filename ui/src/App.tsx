@@ -11,6 +11,10 @@ export interface Session {
   // Name is the canonical identity — keeping it in storage lets us auto-rejoin if the
   // token is rejected (e.g., server restarted with a different token issuance).
   name: string;
+  // Last-known language for this room. The Game page refreshes this from /state on load,
+  // but storing it here means the loading screen and any Home-side UI immediately speak
+  // the right language after a reload.
+  language?: "en" | "pt";
 }
 
 // Persist in localStorage so a full browser restart still rejoins; sessionStorage only

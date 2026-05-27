@@ -124,6 +124,7 @@ export interface RoomState {
   narration_done?: boolean;
   accusation_log?: AccusationLogEntry[];
   chat_events?: ServerEventSnapshot[];
+  language?: "en" | "pt";
 }
 
 export type Language = "en" | "pt";

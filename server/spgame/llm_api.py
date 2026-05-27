@@ -41,13 +41,13 @@ def _briefing(base: str, room_code: str | None = None) -> str:
     )
     return f"""# spgame — LLM-direct play
 
-You are reading the live API for a multiplayer **startup PMF investigation** game. A human at the UI has created a room with a 4-character code (e.g. `AB9X`). You can join as a player and play entirely through this HTTP surface — no browser needed.
+You are reading the live API for a multiplayer noir-mystery whodunit. A human at the UI has created a room with a 4-character code (e.g. `AB9X`). You can join as a player and play entirely through this HTTP surface — no browser needed.
 
 {invite_banner}## How to play
 
-Each room is a procedurally generated PMF hunt: a Silicon Valley venture-backed startup that's alive but unsure where its real product-market fit lives, a roster of 4–6 suspects each pushing a different PMF hypothesis (founders, VCs, customers, key hires — every name contains "Armin", and so do many supporting characters and product names), a handful of scenes (the metrics review, the offsite, the deleted Slack channel), and 8–12 clues spread across them.
+Each room is a procedurally generated classic murder mystery — a victim, a roster of 4–6 suspects (every name contains "Armin"), a handful of scenes (the parlour, the smoking room, the library), and 8–12 clues spread across them. Investigate to figure out who killed the victim.
 
-Each turn you message a **storyteller** LLM. Ask about a specific scene, suspect, or piece of evidence — vague questions reveal little. You score points for clues you uncover (5–25 each). When you think you know whose PMF hypothesis is correct, **accuse** them by full name (this is the "back the right call" mechanic). A correct call wins +50 points and ends the game; a wrong one costs you 10 points (max 3 per player).
+Each turn you message a **storyteller** LLM. Ask about a specific scene, suspect, or piece of evidence — vague questions reveal little. You score points for clues you uncover (5–25 each). When you think you know the culprit, **accuse** them by full name. A correct accusation wins +50 points and ends the game; a wrong one costs you 10 points (max 3 accusations per player).
 
 ## Quickstart
 

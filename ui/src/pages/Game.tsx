@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Session } from "../App";
-import { api, apiBaseSync, resolveAssetUrl, type AccusationLogEntry, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
+import { api, apiBaseSync, resolveAssetUrl, type AccusationLogEntry, type Language, type RoomState, type Clue, type ClueSummary, type Suspect } from "../api";
 import { subscribe, type ServerEvent } from "../realtime";
+import { t } from "../i18n";
 
 interface Props {
   session: Session;
@@ -109,6 +110,9 @@ export function Game({ session, onLeave }: Props) {
     if (!isHistorical && (ev.kind === "start" || ev.kind === "win" || ev.kind === "join")) {
       api.getState(session.code, session.token).then(setState).catch(() => {});
     }
+    // Language for any system-line strings we synthesize here. Read from the latest
+    // known state; falls back to session.language and finally English.
+    const evLang: Language = (state?.language ?? session.language ?? "en") as Language;
     if (ev.kind === "suspect_image" && ev.payload.suspect_id && ev.payload.image_url) {
       setPortraits((prev) => ({ ...prev, [ev.payload.suspect_id]: ev.payload.image_url }));
       return; // suspect_image isn't a chat-worthy event
@@ -160,21 +164,32 @@ export function Game({ session, onLeave }: Props) {
         case "clue":
           next.push({
             seq: ev.seq, role: "self-clue",
-            text: `You uncovered ${ev.payload.clues.length} clue(s): +${ev.payload.points_awarded} pts`,
+            text: t("chat.line.clue_header", evLang, {
+              n: ev.payload.clues.length,
+              points: ev.payload.points_awarded,
+            }),
             clues: ev.payload.clues,
           });
           break;
         case "clue_found":
           next.push({
             seq: ev.seq, role: "system",
-            text: `${ev.payload.name} uncovered ${ev.payload.clues.length} clue(s) (+${ev.payload.points_awarded} pts).`,
+            text: t("chat.line.clue_summary", evLang, {
+              name: ev.payload.name,
+              n: ev.payload.clues.length,
+              points: ev.payload.points_awarded,
+            }),
           });
           break;
         case "accuse":
           next.push({
             seq: ev.seq, role: "accuse",
             text: ev.payload.status === "wrong"
-              ? `${ev.payload.player_name} wrongly accused ${ev.payload.suspect_name} (-${ev.payload.penalty} pts).`
+              ? t("chat.line.wrong_accuse", evLang, {
+                  name: ev.payload.player_name,
+                  suspect: ev.payload.suspect_name,
+                  penalty: ev.payload.penalty,
+                })
               : `Accusation result: ${ev.payload.status}`,
           });
           if (ev.payload.suspect_id && ev.payload.player_name) {
@@ -188,7 +203,11 @@ export function Game({ session, onLeave }: Props) {
         case "win":
           next.push({
             seq: ev.seq, role: "win",
-            text: `🏆 ${ev.payload.player_name} correctly accused ${ev.payload.suspect_name}! Motive: ${ev.payload.motive}`,
+            text: t("chat.line.win", evLang, {
+              name: ev.payload.player_name,
+              suspect: ev.payload.suspect_name,
+              motive: ev.payload.motive,
+            }),
           });
           if (ev.payload.suspect_id && ev.payload.player_name) {
             setAccusations((prev) => [...prev, {
@@ -201,13 +220,13 @@ export function Game({ session, onLeave }: Props) {
         case "join":
           next.push({
             seq: ev.seq, role: "system",
-            text: `${ev.payload.name} joined the room.`,
+            text: t("chat.line.joined", evLang, { name: ev.payload.name }),
           });
           break;
         case "start":
           next.push({
             seq: ev.seq, role: "system",
-            text: `The mystery "${ev.payload.title}" has begun.`,
+            text: t("chat.line.start", evLang, { title: ev.payload.title }),
           });
           break;
         default:
@@ -258,36 +277,50 @@ export function Game({ session, onLeave }: Props) {
     }
   }
 
+  // Pre-state language (state hasn't loaded yet) — use session.language for the loading
+  // and error screens.
+  const preLang: Language = (session.language ?? "en") as Language;
+
   if (error && !state) {
     return (
       <div style={styles.shell}>
         <div style={{ color: "var(--danger)", padding: 24 }}>
-          Error: {error} <button onClick={onLeave} style={styles.smallBtn}>Leave</button>
+          {t("error.prefix", preLang)} {error}{" "}
+          <button onClick={onLeave} style={styles.smallBtn}>{t("game.leave", preLang)}</button>
         </div>
       </div>
     );
   }
 
   if (!state) {
-    return <div style={styles.shell}><div style={{ padding: 24 }}>Loading room {session.code}…</div></div>;
+    return (
+      <div style={styles.shell}>
+        <div style={{ padding: 24 }}>{t("loading.room", preLang, { code: session.code })}</div>
+      </div>
+    );
   }
 
   const youName = state.you?.name ?? "you";
   const isHost = state.host_id === session.playerId;
+  // Pick the room's language for all UI strings. Falls back to session.language (set on
+  // join/create) and finally English so we never crash mid-render.
+  const lang: Language = (state.language ?? session.language ?? "en") as Language;
 
   return (
     <div style={styles.shell}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.gameTitle}>{state.mystery?.title ?? `Room ${state.code}`}</h1>
+          <h1 style={styles.gameTitle}>{state.mystery?.title ?? `${t("game.room", lang)} ${state.code}`}</h1>
           {state.mystery && <div style={styles.setting}>{state.mystery.setting}</div>}
         </div>
         <div style={styles.headerRight}>
-          <div>Room <code style={styles.roomCode}>{state.code}</code></div>
-          <div style={styles.status}>Status: <b>{state.status}</b></div>
-          <HeaderShareButton code={state.code} kind="player" />
-          <HeaderShareButton code={state.code} kind="llm" />
-          <button onClick={onLeave} style={styles.smallBtn}>Leave</button>
+          <div>{t("game.room", lang)} <code style={styles.roomCode}>{state.code}</code></div>
+          <div style={styles.status}>
+            {t("game.status", lang)} <b>{t(`game.status.${state.status}` as any, lang)}</b>
+          </div>
+          <HeaderShareButton code={state.code} kind="player" lang={lang} />
+          <HeaderShareButton code={state.code} kind="llm" lang={lang} />
+          <button onClick={onLeave} style={styles.smallBtn}>{t("game.leave", lang)}</button>
         </div>
       </header>
 
@@ -299,6 +332,7 @@ export function Game({ session, onLeave }: Props) {
           onStart={startGame}
           code={state.code}
           error={error}
+          lang={lang}
         />
       )}
 
@@ -314,6 +348,7 @@ export function Game({ session, onLeave }: Props) {
             chatLogRef={chatLogRef}
             status={state.status}
             suspects={state.mystery.suspects}
+            lang={lang}
           />
           <MysteryPanel
             state={state}
@@ -321,6 +356,7 @@ export function Game({ session, onLeave }: Props) {
             narration={narration}
             narrationDone={narrationDone}
             accusations={accusations}
+            lang={lang}
           />
           <SidePanel
             state={state}
@@ -333,6 +369,7 @@ export function Game({ session, onLeave }: Props) {
             youPlayerId={state.you?.id ?? null}
             scenes={state.mystery.scenes}
             suspects={state.mystery.suspects}
+            lang={lang}
           />
         </div>
       )}
@@ -344,17 +381,22 @@ export function Game({ session, onLeave }: Props) {
   );
 }
 
-function Lobby({ players, isHost, starting, onStart, code, error }: any) {
+function Lobby({ players, isHost, starting, onStart, code, error, lang }: any) {
+  // Pull out the {code} placeholder so we can interleave a styled <code> tag.
+  const subtitleText = t("lobby.subtitle", lang, { code: "" });
+  const [pre, post] = subtitleText.split("{code}");
   return (
     <div style={styles.lobby}>
-      <h2 style={{ marginBottom: 4 }}>Waiting to start</h2>
+      <h2 style={{ marginBottom: 4 }}>{t("lobby.title", lang)}</h2>
       <p style={{ color: "var(--muted)" }}>
-        Share the room code <code style={styles.roomCodeBig}>{code}</code> with other players.
+        {pre}
+        <code style={styles.roomCodeBig}>{code}</code>
+        {post}
       </p>
 
-      <SharePanel code={code} />
+      <SharePanel code={code} lang={lang} />
 
-      <h3>Players in the room</h3>
+      <h3>{t("lobby.players", lang)}</h3>
       <ul style={styles.playerList}>
         {players.map((p: any) => (
           <li key={p.id} style={styles.playerRow}>
@@ -369,10 +411,10 @@ function Lobby({ players, isHost, starting, onStart, code, error }: any) {
           disabled={starting}
           style={starting ? styles.buttonDisabled : styles.button}
         >
-          {starting ? "Generating mystery…" : "Start the game"}
+          {starting ? t("lobby.button.starting", lang) : t("lobby.button.start", lang)}
         </button>
       ) : (
-        <p style={{ color: "var(--muted)" }}>Waiting for the host to start the game…</p>
+        <p style={{ color: "var(--muted)" }}>{t("lobby.waiting_for_host", lang)}</p>
       )}
       {error && <div style={styles.errorBar}>{error}</div>}
     </div>
@@ -381,7 +423,7 @@ function Lobby({ players, isHost, starting, onStart, code, error }: any) {
 
 // Compact "copy URL" button used in the page header so users can grab the player or LLM
 // invite link without scrolling back to the lobby. The two-kind props keep styling unified.
-function HeaderShareButton({ code, kind }: { code: string; kind: "player" | "llm" }) {
+function HeaderShareButton({ code, kind, lang }: { code: string; kind: "player" | "llm"; lang: Language }) {
   const [copied, setCopied] = useState(false);
   const url = useMemo(() => {
     if (kind === "player") {
@@ -403,19 +445,18 @@ function HeaderShareButton({ code, kind }: { code: string; kind: "player" | "llm
     setTimeout(() => setCopied(false), 1400);
   }
 
-  const label = kind === "llm" ? "LLM link" : "Player link";
   return (
     <button
       onClick={copy}
       style={kind === "llm" ? styles.headerShareLlm : styles.headerSharePlayer}
       title={url}
     >
-      {copied ? "Copied ✓" : `Copy ${label}`}
+      {copied ? t("game.copied", lang) : t(kind === "llm" ? "game.copy.llm_link" : "game.copy.player_link", lang)}
     </button>
   );
 }
 
-function SharePanel({ code }: { code: string }) {
+function SharePanel({ code, lang }: { code: string; lang: Language }) {
   // Player URL: this UI's origin + ?room=CODE — recipients land on the join page with the
   // code pre-filled and only need to enter their name.
   const playerUrl = useMemo(() => {
@@ -434,22 +475,19 @@ function SharePanel({ code }: { code: string }) {
 
   return (
     <div style={styles.sharePanel}>
-      <div style={styles.shareTitle}>Invite others</div>
+      <div style={styles.shareTitle}>{t("share.title", lang)}</div>
 
-      <div style={styles.shareLabel}>Player link — for humans</div>
-      <CopyableUrl url={playerUrl} />
+      <div style={styles.shareLabel}>{t("share.label.player", lang)}</div>
+      <CopyableUrl url={playerUrl} lang={lang} />
 
-      <div style={{ ...styles.shareLabel, marginTop: 12 }}>LLM link — paste into Claude / ChatGPT</div>
-      <CopyableUrl url={llmUrl} />
-      <div style={styles.shareHint}>
-        The LLM URL returns a Markdown briefing with the room context and curl examples;
-        replace <code>YOUR_BOT_NAME</code> with whatever you'd like the LLM-controlled player to be called.
-      </div>
+      <div style={{ ...styles.shareLabel, marginTop: 12 }}>{t("share.label.llm", lang)}</div>
+      <CopyableUrl url={llmUrl} lang={lang} />
+      <div style={styles.shareHint}>{t("share.hint", lang)}</div>
     </div>
   );
 }
 
-function CopyableUrl({ url }: { url: string }) {
+function CopyableUrl({ url, lang }: { url: string; lang: Language }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -470,23 +508,23 @@ function CopyableUrl({ url }: { url: string }) {
   return (
     <div style={styles.copyRow}>
       <input style={styles.copyInput} value={url} readOnly onFocus={(e) => e.target.select()} />
-      <button onClick={copy} style={styles.copyBtn}>{copied ? "Copied ✓" : "Copy"}</button>
+      <button onClick={copy} style={styles.copyBtn}>
+        {copied ? t("game.copied", lang) : t("share.button.copy", lang)}
+      </button>
     </div>
   );
 }
 
 function ChatPanel({
-  lines, input, setInput, sending, onSend, chatLogRef, status, suspects,
+  lines, input, setInput, sending, onSend, chatLogRef, status, suspects, lang,
 }: any) {
   return (
     <div style={styles.chatPanel}>
-      <div style={styles.panelTitle}>Storyteller</div>
+      <div style={styles.panelTitle}>{t("chat.title", lang)}</div>
       <div ref={chatLogRef} style={styles.chatLog}>
         {lines.map((l: ChatLine) => (
-          <ChatLineView key={l.seq} line={l} suspects={suspects} />
+          <ChatLineView key={l.seq} line={l} suspects={suspects} lang={lang} />
         ))}
-        {/* The prompt scrolls inline with the chat history — sits right after the latest
-            message rather than being pinned at the bottom of the panel. */}
         <div style={styles.chatInputBar}>
           <input
             style={styles.chatInput}
@@ -494,7 +532,7 @@ function ChatPanel({
             disabled={sending || status === "over"}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSend()}
-            placeholder={status === "over" ? "Game over." : "Ask the storyteller… (specific = better)"}
+            placeholder={status === "over" ? t("chat.placeholder.over", lang) : t("chat.placeholder", lang)}
             autoFocus
           />
           <button
@@ -502,7 +540,7 @@ function ChatPanel({
             disabled={sending || !input.trim() || status === "over"}
             style={(sending || !input.trim() || status === "over") ? styles.buttonDisabledSm : styles.buttonSm}
           >
-            {sending ? "…" : "Send"}
+            {sending ? "…" : t("chat.send", lang)}
           </button>
         </div>
       </div>
@@ -510,7 +548,7 @@ function ChatPanel({
   );
 }
 
-function ChatLineView({ line, suspects }: { line: ChatLine; suspects: Suspect[] }) {
+function ChatLineView({ line, suspects, lang }: { line: ChatLine; suspects: Suspect[]; lang: Language }) {
   const base = styles.chatLine;
   switch (line.role) {
     case "player":
@@ -522,7 +560,7 @@ function ChatLineView({ line, suspects }: { line: ChatLine; suspects: Suspect[] 
     case "story":
       return (
         <div style={{ ...base, ...styles.lineStory }}>
-          <i>Storyteller{line.who ? ` (to ${line.who})` : ""}:</i>{" "}
+          <i>{line.who ? t("chat.line.story", lang, { who: line.who }) : t("chat.line.story.noname", lang)}</i>{" "}
           <HighlightedText text={line.text} suspects={suspects} />
         </div>
       );
@@ -610,11 +648,12 @@ function splitOnSuspects(text: string, suspects: Suspect[]): Segment[] {
 }
 
 function MysteryPanel({
-  state, portraits, narration, narrationDone, accusations,
+  state, portraits, narration, narrationDone, accusations, lang,
 }: {
   state: RoomState; portraits: Record<string, string>;
   narration: string; narrationDone: boolean;
   accusations: AccusationLogEntry[];
+  lang: Language;
 }) {
   const m = state.mystery!;
   // Narration is auto-expanded while streaming and once it finishes; the user can manually
@@ -643,8 +682,8 @@ function MysteryPanel({
 
   return (
     <div style={styles.midPanel}>
-      <div style={styles.panelTitle}>The PMF hunt</div>
-      <p><b>The PMF this team is chasing:</b> {m.victim}</p>
+      <div style={styles.panelTitle}>{t("mystery.panel", lang)}</div>
+      <p><b>{t("mystery.victim", lang)}</b> {m.victim}</p>
 
       {(narration || !narrationDone) && (
         <div style={styles.narrationBlock}>
@@ -655,9 +694,11 @@ function MysteryPanel({
             aria-expanded={narrationOpen}
           >
             <span style={styles.narrationTitle}>
-              Case briefing {narrationDone ? "" : <span style={styles.cursor}>▌</span>}
+              {t("mystery.narration", lang)} {narrationDone ? "" : <span style={styles.cursor}>▌</span>}
             </span>
-            <span style={styles.narrationToggle}>{narrationOpen ? "▾ hide" : "▸ show"}</span>
+            <span style={styles.narrationToggle}>
+              {narrationOpen ? t("mystery.hide", lang) : t("mystery.show", lang)}
+            </span>
           </button>
           {narrationOpen && (
             narration ? (
@@ -666,13 +707,13 @@ function MysteryPanel({
               </div>
             ) : (
               <div style={{ color: "var(--muted)", fontStyle: "italic", padding: "0 14px 12px" }}>
-                The storyteller clears their throat…
+                {t("mystery.throat", lang)}
               </div>
             )
           )}
         </div>
       )}
-      <h4 style={styles.h4}>Suspects</h4>
+      <h4 style={styles.h4}>{t("mystery.suspects", lang)}</h4>
       <ul style={styles.suspectList}>
         {m.suspects.map((s) => {
           const url = portraits[s.id] ?? s.image_url ?? null;
@@ -691,13 +732,16 @@ function MysteryPanel({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div><b>{s.name}</b> — {s.role}</div>
                 <div style={styles.muted}>{s.description}</div>
-                <div style={styles.smallMuted}><i>Alibi:</i> {s.alibi}</div>
+                <div style={styles.smallMuted}><i>{t("mystery.alibi", lang)}</i> {s.alibi}</div>
                 {accusationCount > 0 && (
                   <div style={styles.accusedLine}>
                     <span style={styles.accusedBadge}>
-                      Accused {accusationCount}× {accusationCount > 1 ? "times" : ""}
+                      {t("mystery.accused", lang, {
+                        count: accusationCount,
+                        plural: accusationCount > 1 ? t("mystery.accused.times", lang) : "",
+                      })}
                     </span>
-                    <span style={styles.accusedNames}> by {accuserList}</span>
+                    <span style={styles.accusedNames}> {t("mystery.accused.by", lang)} {accuserList}</span>
                   </div>
                 )}
               </div>
@@ -705,7 +749,7 @@ function MysteryPanel({
           );
         })}
       </ul>
-      <h4 style={styles.h4}>Scenes</h4>
+      <h4 style={styles.h4}>{t("mystery.scenes", lang)}</h4>
       <ul style={styles.suspectList}>
         {m.scenes.map((sc) => (
           <li key={sc.id} style={styles.suspectCard}>
@@ -722,7 +766,7 @@ function MysteryPanel({
         ))}
       </ul>
       <div style={{ color: "var(--muted)", marginTop: 8, fontSize: 12 }}>
-        {m.clues.length} total clues. You've found {youClueIds.size}.
+        {t("mystery.clue_count", lang, { total: m.clues.length, found: youClueIds.size })}
       </div>
     </div>
   );
@@ -733,19 +777,20 @@ const CLUE_POP_HEIGHT = 340; // approximate; used only to clamp vertical positio
 const CLUE_POP_GAP = 12;
 
 function ClueChip({
-  summary, fullText, sceneName, finderName, isYour,
+  summary, fullText, sceneName, finderName, isYour, lang,
 }: {
   summary: ClueSummary;
   fullText: string | null;
   sceneName: string | null;
   finderName: string;
   isYour: boolean;
+  lang: Language;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; placement: "left" | "right"; chipMidY: number } | null>(null);
   const chipRef = useRef<HTMLDivElement>(null);
   const resolved = resolveAssetUrl(summary.image_url ?? null);
-  const title = summary.image_title ?? "Unknown evidence";
+  const title = summary.image_title ?? t("tooltip.unknown", lang);
 
   const updatePosition = useCallback(() => {
     const el = chipRef.current;
@@ -805,7 +850,7 @@ function ClueChip({
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
         style={styles.clueChipBtn}
-        aria-label={`Inspect ${title}`}
+        aria-label={t("tooltip.inspect", lang, { title })}
       >
         {resolved ? (
           <img src={resolved} alt={title} style={styles.clueThumb} />
@@ -841,24 +886,24 @@ function ClueChip({
           <div style={styles.cluePopBody}>
             <div style={styles.cluePopTitle}>{title}</div>
             <div style={styles.cluePopMeta}>
-              <span>Found by <b>{finderName}</b></span>
+              <span>{t("tooltip.found_by", lang)} <b>{finderName}</b></span>
               {summary.points != null && (
-                <span style={styles.cluePopPoints}>+{summary.points} pts</span>
+                <span style={styles.cluePopPoints}>{t("tooltip.points", lang, { n: summary.points })}</span>
               )}
             </div>
             {sceneName && (
-              <div style={styles.cluePopScene}>Scene: <i>{sceneName}</i></div>
+              <div style={styles.cluePopScene}>{t("tooltip.scene", lang)} <i>{sceneName}</i></div>
             )}
             <div style={styles.cluePopText}>
               {isYour && fullText ? (
                 fullText
               ) : isYour ? (
                 <span style={{ color: "var(--muted)", fontStyle: "italic" }}>
-                  Full description not loaded — try reopening the room.
+                  {t("tooltip.missing", lang)}
                 </span>
               ) : (
                 <span style={{ color: "var(--muted)", fontStyle: "italic" }}>
-                  Hidden — {finderName} alone knows the full detail. Find it yourself for the points.
+                  {t("tooltip.hidden", lang, { name: finderName })}
                 </span>
               )}
             </div>
@@ -910,7 +955,7 @@ function Portrait({ url, name, size }: { url: string | null; name: string; size:
 
 function SidePanel({
   state, onAccuse, accusing, isOver, portraits,
-  foundByPlayer, myClueText, youPlayerId, scenes,
+  foundByPlayer, myClueText, youPlayerId, scenes, lang,
 }: any) {
   const sceneById = useMemo(() => {
     const m = new Map<string, string>();
@@ -920,7 +965,7 @@ function SidePanel({
 
   return (
     <div style={styles.sidePanel}>
-      <div style={styles.panelTitle}>Leaderboard &amp; finds</div>
+      <div style={styles.panelTitle}>{t("side.title", lang)}</div>
       <ul style={styles.scoreList}>
         {[...state.players].sort((a: any, b: any) => b.points - a.points).map((p: any) => {
           const finds: ClueSummary[] = foundByPlayer[p.id] ?? [];
@@ -930,7 +975,7 @@ function SidePanel({
               <div style={styles.scoreRow}>
                 <span>
                   {p.name}{state.winner_id === p.id ? " 🏆" : ""}
-                  {isYou && <span style={styles.youBadge}>you</span>}
+                  {isYou && <span style={styles.youBadge}>{t("side.you_badge", lang)}</span>}
                 </span>
                 <b>{p.points}</b>
               </div>
@@ -946,6 +991,7 @@ function SidePanel({
                         sceneName={c.scene_id ? sceneById.get(c.scene_id) ?? null : null}
                         finderName={p.name}
                         isYour={isYou}
+                        lang={lang}
                       />
                     );
                   })}
@@ -957,9 +1003,9 @@ function SidePanel({
       </ul>
       {state.mystery && !isOver && (
         <>
-          <div style={{ ...styles.panelTitle, marginTop: 18 }}>Accuse</div>
+          <div style={{ ...styles.panelTitle, marginTop: 18 }}>{t("side.accuse", lang)}</div>
           <p style={{ color: "var(--muted)", fontSize: 12, marginTop: 0 }}>
-            Used {state.you?.accusations_used ?? 0}/3. Wrong = -10. Right = +50 and win.
+            {t("side.accuse.hint", lang, { used: state.you?.accusations_used ?? 0 })}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {state.mystery.suspects.map((s: any) => {
@@ -976,7 +1022,11 @@ function SidePanel({
                   }}
                 >
                   <Portrait url={url} name={s.name} size={32} />
-                  <span>{accusing === s.id ? "Accusing…" : `Accuse ${s.name}`}</span>
+                  <span>
+                    {accusing === s.id
+                      ? t("side.accuse.busy", lang)
+                      : t("side.accuse.button", lang, { name: s.name })}
+                  </span>
                 </button>
               );
             })}
@@ -984,9 +1034,7 @@ function SidePanel({
         </>
       )}
       {isOver && (
-        <div style={styles.gameOver}>
-          Game over. Refresh to start a new room.
-        </div>
+        <div style={styles.gameOver}>{t("side.game_over", lang)}</div>
       )}
     </div>
   );

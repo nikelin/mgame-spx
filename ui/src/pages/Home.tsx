@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, type Language } from "../api";
 import type { Session } from "../App";
+import { t } from "../i18n";
 
 interface Props {
   onJoined: (s: Session) => void;
@@ -24,10 +25,16 @@ export function Home({ onJoined, initialCode }: Props) {
     try {
       if (mode === "create") {
         const r = await api.createRoom(name.trim(), apiKey.trim() || null, language);
-        onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host, name: name.trim() });
+        onJoined({
+          code: r.code, playerId: r.player_id, token: r.token,
+          isHost: r.is_host, name: name.trim(), language: r.language,
+        });
       } else {
         const r = await api.joinRoom(code.trim().toUpperCase(), name.trim());
-        onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host, name: name.trim() });
+        onJoined({
+          code: r.code, playerId: r.player_id, token: r.token,
+          isHost: r.is_host, name: name.trim(),
+        });
       }
     } catch (e: any) {
       // Surface a clearer message when the game has already started — the server returns
@@ -44,41 +51,64 @@ export function Home({ onJoined, initialCode }: Props) {
     <div style={styles.shell}>
       <div style={styles.card}>
         <h1 style={styles.title}>spgame</h1>
-        <p style={styles.subtitle}>
-          Where does the SF startup's product-market fit live? A collaborative investigation.
-          Procedurally generated. Figure out whose hypothesis is right before anyone else does.
-        </p>
+        <p style={styles.subtitle}>{t("home.subtitle", language)}</p>
+
+        {/* Language toggle is always visible — controls UI strings here and (on Create)
+            the game language too. */}
+        <div style={{ ...styles.flagRow, marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => setLanguage("en")}
+            style={language === "en" ? styles.flagBtnActive : styles.flagBtn}
+            aria-pressed={language === "en"}
+            aria-label="English"
+          >
+            <span style={styles.flagEmoji} aria-hidden="true">🇬🇧</span>
+            <span>English</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage("pt")}
+            style={language === "pt" ? styles.flagBtnActive : styles.flagBtn}
+            aria-pressed={language === "pt"}
+            aria-label="Portuguese"
+          >
+            <span style={styles.flagEmoji} aria-hidden="true">🇵🇹</span>
+            <span>Português</span>
+          </button>
+        </div>
 
         <div style={styles.tabs}>
           <button
             style={mode === "create" ? styles.tabActive : styles.tab}
             onClick={() => setMode("create")}
-          >Create a room</button>
+          >{t("home.tab.create", language)}</button>
           <button
             style={mode === "join" ? styles.tabActive : styles.tab}
             onClick={() => setMode("join")}
-          >Join a room</button>
+          >{t("home.tab.join", language)}</button>
         </div>
 
         {initialCode && (
           <div style={styles.invite}>
-            You were invited to room <code style={styles.inviteCode}>{initialCode}</code> — enter your name to join.
+            {t("home.invite", language).replace("{code}", "")}
+            <code style={styles.inviteCode}>{initialCode}</code>
           </div>
         )}
 
-        <label style={styles.label}>Your name</label>
+        <label style={styles.label}>{t("home.label.name", language)}</label>
         <input
           style={styles.input}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Sherlock"
+          placeholder={t("home.placeholder.name", language)}
           maxLength={40}
           autoFocus
         />
 
         {mode === "join" && (
           <>
-            <label style={styles.label}>Room code</label>
+            <label style={styles.label}>{t("home.label.code", language)}</label>
             <input
               style={{ ...styles.input, textTransform: "uppercase", letterSpacing: 4, fontSize: 18 }}
               value={code}
@@ -91,45 +121,17 @@ export function Home({ onJoined, initialCode }: Props) {
 
         {mode === "create" && (
           <>
-            <label style={styles.label}>Language</label>
-            <div style={styles.flagRow}>
-              <button
-                type="button"
-                onClick={() => setLanguage("en")}
-                style={language === "en" ? styles.flagBtnActive : styles.flagBtn}
-                aria-pressed={language === "en"}
-                aria-label="English"
-              >
-                <span style={styles.flagEmoji} aria-hidden="true">🇬🇧</span>
-                <span>English</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage("pt")}
-                style={language === "pt" ? styles.flagBtnActive : styles.flagBtn}
-                aria-pressed={language === "pt"}
-                aria-label="Portuguese"
-              >
-                <span style={styles.flagEmoji} aria-hidden="true">🇵🇹</span>
-                <span>Português</span>
-              </button>
-            </div>
-
-            <label style={styles.label}>OpenAI API key (optional)</label>
+            <label style={styles.label}>{t("home.label.api_key", language)}</label>
             <input
               style={{ ...styles.input, fontFamily: "ui-monospace, monospace", fontSize: 12 }}
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-... (leave blank to use the server's shared key)"
+              placeholder={t("home.placeholder.api_key", language)}
               autoComplete="off"
               spellCheck={false}
             />
-            <div style={styles.hint}>
-              If you provide your own key, every LLM call for THIS room (mystery, narration,
-              storyteller turns, clue matching) will use it instead of the server's default.
-              The key is stored only on the room's server-side state.
-            </div>
+            <div style={styles.hint}>{t("home.hint.api_key", language)}</div>
           </>
         )}
 
@@ -140,14 +142,12 @@ export function Home({ onJoined, initialCode }: Props) {
           disabled={!canSubmit || busy}
           onClick={submit}
         >
-          {busy ? "Working…" : mode === "create" ? "Create room" : "Join room"}
+          {busy
+            ? t("home.button.busy", language)
+            : mode === "create" ? t("home.button.create", language) : t("home.button.join", language)}
         </button>
 
-        <p style={styles.muted}>
-          Want to play from a Claude/ChatGPT session instead? Paste your room URL +{" "}
-          <code>/llm</code> into the chat — the model will read the instructions and play
-          alongside humans.
-        </p>
+        <p style={styles.muted}>{t("home.footer", language)}</p>
       </div>
     </div>
   );
