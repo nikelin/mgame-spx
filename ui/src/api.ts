@@ -126,12 +126,18 @@ export interface RoomState {
   chat_events?: ServerEventSnapshot[];
 }
 
+export type Language = "en" | "pt";
+
 export const api = {
-  createRoom: (host_name: string, openai_api_key?: string | null) =>
-    request<{ code: string; player_id: string; token: string; is_host: boolean; uses_custom_key: boolean }>(
-      "POST", "/rooms",
-      openai_api_key ? { host_name, openai_api_key } : { host_name },
-    ),
+  createRoom: (host_name: string, openai_api_key?: string | null, language?: Language) => {
+    const body: Record<string, unknown> = { host_name };
+    if (openai_api_key) body.openai_api_key = openai_api_key;
+    if (language) body.language = language;
+    return request<{
+      code: string; player_id: string; token: string;
+      is_host: boolean; uses_custom_key: boolean; language: Language;
+    }>("POST", "/rooms", body);
+  },
   // Join is idempotent for the same name (case-insensitive): a returning player gets
   // back their existing player_id and a (re-issued) token. Acts as a resume entry point.
   joinRoom: (code: string, name: string) =>

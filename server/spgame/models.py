@@ -120,6 +120,9 @@ class GameRoom(BaseModel):
     # OPENAI_API_KEY env var for every LLM call made on behalf of this room. Persisted with
     # the rest of the room state so it survives restarts. NEVER echoed in /state or events.
     openai_api_key: str | None = None
+    # Language for all LLM-generated content (mystery, suspect names, narration, storyteller
+    # replies). "en" = English, "pt" = Portuguese. Default English.
+    language: Literal["en", "pt"] = "en"
     # Turn-based play: ordered list of player_ids, set at game start. current_turn_index
     # cycles through it modulo the list length. /message and /accuse refuse to act unless
     # it's the calling player's turn.
@@ -165,6 +168,10 @@ class CreateRoomReq(BaseModel):
         description="Optional: a per-room OpenAI key to use for ALL LLM calls in this room "
                     "instead of the server's global key. Useful when the host wants to pay for "
                     "this game with their own quota.",
+    )
+    language: Literal["en", "pt"] = Field(
+        default="en",
+        description="Language for all LLM-generated content. 'en' = English, 'pt' = Portuguese.",
     )
 
 

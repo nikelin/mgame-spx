@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api";
+import { api, type Language } from "../api";
 import type { Session } from "../App";
 
 interface Props {
@@ -14,6 +14,7 @@ export function Home({ onJoined, initialCode }: Props) {
   const [name, setName] = useState("");
   const [code, setCode] = useState(initialCode ?? "");
   const [apiKey, setApiKey] = useState("");
+  const [language, setLanguage] = useState<Language>("en");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +23,7 @@ export function Home({ onJoined, initialCode }: Props) {
     setBusy(true);
     try {
       if (mode === "create") {
-        const r = await api.createRoom(name.trim(), apiKey.trim() || null);
+        const r = await api.createRoom(name.trim(), apiKey.trim() || null, language);
         onJoined({ code: r.code, playerId: r.player_id, token: r.token, isHost: r.is_host, name: name.trim() });
       } else {
         const r = await api.joinRoom(code.trim().toUpperCase(), name.trim());
@@ -90,6 +91,30 @@ export function Home({ onJoined, initialCode }: Props) {
 
         {mode === "create" && (
           <>
+            <label style={styles.label}>Language</label>
+            <div style={styles.flagRow}>
+              <button
+                type="button"
+                onClick={() => setLanguage("en")}
+                style={language === "en" ? styles.flagBtnActive : styles.flagBtn}
+                aria-pressed={language === "en"}
+                aria-label="English"
+              >
+                <span style={styles.flagEmoji} aria-hidden="true">🇬🇧</span>
+                <span>English</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLanguage("pt")}
+                style={language === "pt" ? styles.flagBtnActive : styles.flagBtn}
+                aria-pressed={language === "pt"}
+                aria-label="Portuguese"
+              >
+                <span style={styles.flagEmoji} aria-hidden="true">🇵🇹</span>
+                <span>Português</span>
+              </button>
+            </div>
+
             <label style={styles.label}>OpenAI API key (optional)</label>
             <input
               style={{ ...styles.input, fontFamily: "ui-monospace, monospace", fontSize: 12 }}
@@ -169,6 +194,25 @@ const styles: Record<string, React.CSSProperties> = {
   },
   muted: { color: "var(--muted)", marginTop: 24, fontSize: 12, lineHeight: 1.5 },
   hint: { color: "var(--muted)", marginTop: 6, fontSize: 11, lineHeight: 1.45 },
+  flagRow: { display: "flex", gap: 8 },
+  flagBtn: {
+    flex: 1,
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+    padding: "10px 12px", borderRadius: 6,
+    border: "1px solid #2d3a52", background: "transparent",
+    color: "var(--muted)", cursor: "pointer",
+    fontSize: 13,
+  },
+  flagBtnActive: {
+    flex: 1,
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+    padding: "10px 12px", borderRadius: 6,
+    border: "1px solid var(--accent)",
+    background: "rgba(212,160,78,0.15)",
+    color: "var(--accent)", cursor: "pointer",
+    fontSize: 13, fontWeight: 600,
+  },
+  flagEmoji: { fontSize: 22, lineHeight: 1 },
   invite: {
     background: "rgba(212,160,78,0.10)",
     border: "1px solid var(--accent)",

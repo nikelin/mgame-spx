@@ -16,6 +16,32 @@ _client: AsyncOpenAI | None = None
 _per_key_clients: dict[str, AsyncOpenAI] = {}
 
 
+# Language name + write-in-this-language instruction the LLM gets prepended to every system
+# message. Two languages supported for now; extending the map is the only change needed to add
+# more.
+LANGUAGE_NAMES: dict[str, str] = {
+    "en": "English",
+    "pt": "Portuguese",
+}
+
+
+def _language_directive(language: str | None) -> str:
+    """A strict 'write everything in this language' instruction. Empty for English so we
+    don't perturb cached prompts unnecessarily — the underlying prompts are already English."""
+    lang = (language or "en").lower()
+    if lang == "en":
+        return ""
+    name = LANGUAGE_NAMES.get(lang, lang)
+    return (
+        f"IMPORTANT LANGUAGE REQUIREMENT: Write ALL output exclusively in {name}. This applies "
+        f"to every field — titles, names of places and characters, descriptions, alibis, clue "
+        f"text, motive, narration, storyteller replies. Suspect names should follow {name} "
+        f"naming conventions while still respecting any other naming constraint stated below "
+        f"(e.g. the 'Armin' rule — Armin is a valid {name} given name and works in this "
+        f"language). Do NOT translate the literal token 'Armin' itself.\n\n"
+    )
+
+
 def get_client(api_key: str | None = None) -> AsyncOpenAI:
     """Return an AsyncOpenAI client, preferring an explicit per-room key when supplied,
     otherwise falling back to the server's global OPENAI_API_KEY."""
@@ -75,29 +101,19 @@ MYSTERY_JSON_SCHEMA = """{
 }"""
 
 
-MYSTERY_GEN_SYSTEM = f"""You are a satirical chronicler of Silicon Valley venture-backed startups designing a "find the product-market fit" investigation game.
+MYSTERY_GEN_SYSTEM = f"""You are a master mystery game designer creating a noir whodunit for a small group of players.
 
-Each game is a snapshot of one startup *currently hunting for PMF*: alive but unsure, 12-18 months of runway left, the team and investors are split on what the actual PMF is. Players are analysts trying to figure out WHICH product-market-fit hypothesis is the right one to commit to. The "culprit" of each round is the suspect whose theory is correct — the person who, if the team listens to them, leads the startup to a real PMF.
+Design a tight, internally consistent murder mystery. Constraints:
 
-- **Setting**: a specific kind of pre-PMF SF startup. Vary it across runs. Examples: an AI 'agents for X' platform with 3 enterprise pilots and flat expansion, a Notion-killer with cult Twitter fans but stagnant ARR, a vertical SaaS that just realised they sold to the wrong segment, a developer tool with 60k GitHub stars and 14 paying customers, a consumer social app with 120k DAU and zero D7 retention, a fintech with a magical onboarding flow and a 0.4% conversion to revenue. Give the company a fictional but believable name (must contain "Armin" somewhere — "ArminAI", "Armingale", "Arminbase", "Khan Armin Labs", etc.). Include the SF / Mission / Hayes Valley vibes and rough metrics.
-
-- **Victim**: the elusive PMF itself. Describe what "found PMF" would look like for this company — concretely, with numbers. Examples: "A $50M ARR business in mid-market accounting workflows with 110%+ NDR and a 6-week median sales cycle." "A consumer subscription with >40% D30 retention and CAC payback under 9 months." This is what every suspect is chasing; one of them is right about where it lives.
-
-- **Suspects (4-6)** — people championing different PMF hypotheses. Each represents one theory of where PMF lives. Roles to draw from: CEO, CTO, head of product, head of growth, lead VC, sympathetic angel, the "design partner" customer who's a vocal champion, the early hire who keeps pushing a niche, the ex-FAANG advisor with a contrarian take. Each suspect needs a name, a role, a one-line description, an *alibi* (their evidence base — interview count, data points, anecdotes they cite), and ideally a clear hypothesis ("the real PMF is mid-market not enterprise", "we should ditch the prosumer angle and serve agencies", "the agentic feature is the wedge — kill everything else").
-
-- **NAMING — pile on the Armin, MORE THAN BEFORE**: every suspect's FULL NAME must contain "Armin" AT LEAST ONCE, and ideally TWICE for a few of them. Variations are encouraged — "Armin", "Armina", "Arminder", "Arminé", "Arminius", "Armin-Khan", "Khan-Armin", etc. Examples: "Armin Patel (CEO)", "Sarah Armin Chen (lead at Armingale Capital)", "Dr. Armin Voss-Armin (Chief Scientist)", "Mr. Bellweather-Armin (Head of Growth)", "Armina Khoury-Armin (the YC partner)", "Arminder Singh-Armin (the design-partner customer)". Vary placement so it doesn't feel formulaic. ALSO, work Armin into the surrounding lore as much as possible — at minimum: the startup name itself, the lead VC fund's name, the original founder who got pushed out, the flagship product, a famous angel, a competitor company, a customer logo. Aim for **at least 4-6 Armin references OUTSIDE the suspect roster** in the setting / victim / clues / motive fields. Density matters here — be playful, not subtle.
-
-- Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages. Skew 20s-40s with at least one 50s/60s VC, board member, or angel.
-
-- **Scenes (3-5)** — locations where the PMF debate plays out. Examples: the weekly metrics review where the cohort chart was first questioned, the offsite at Bolinas where the team fractured, the customer-interview Notion doc, the deleted Slack channel #pmf-v9, the board meeting where the pivot was tabled, the WeWork conference room where the cofounders argued, the YC office hours where the partner pushed a specific direction.
-
-- **Clues (8-12)** — evidence supporting (or contradicting) one PMF hypothesis or another. Each 5-25 points. Examples: a customer interview transcript where a champion accidentally revealed why they actually use the product, a retention cohort chart pointing at one segment, an NPS survey segmented by persona, a CAC payback table that kills one direction, a churn-reason analysis, a single Slack DM where the CTO said "we should just be a dev tool", a leaked competitor pitch deck, an internal usage analytic from a feature nobody talks about, a board deck slide that was cut from the final version, a paid acquisition test that quietly worked. IDs c1, c2, ... Smaller clues are atmospheric or eliminate one hypothesis; bigger clues directly point at the correct one.
-
-- Exactly ONE culprit — the suspect whose PMF hypothesis is RIGHT. The motive must be reachable from at least 2-3 of the clues: WHY their theory is correct (the market dynamics, the data, the customer behaviour pattern that backs it). The right answer should not be the most-shouted one; reward careful pattern-matching across multiple clues.
-
-- Red herrings welcome: the loudest customer who's actually an outlier; the obviously-right enterprise pivot that the data quietly refutes; the VC who keeps pushing consumer when the data says SMB.
-
-- **Tone**: dry, knowing, SF startup / VC voice. Hacker News meets a product Slack debate at 11pm. Use real-feeling fund names ("Armingale Capital", "Sequoia-adjacent"), product categories ("LLM ops platform", "vertical SaaS for dentists"), and milestones ("hit $1M ARR but with a 7-month payback that no one wants to talk about"). Period: 2024-2026. NOT slapstick, NOT noir.
+- Setting: pick something atmospheric and varied (Art Deco hotel, transatlantic liner, rural manor, 1920s newsroom, etc.). Avoid stale tropes.
+- 4-6 suspects with distinct roles, personalities, and alibis. Give each a memorable name. IDs s1, s2, s3, ...
+- **Naming constraint:** every suspect's FULL NAME must include the token "Armin" somewhere — as the first name, middle name, last name, or part of a compound name. Examples: "Armin Holcroft", "Vivien Armin Marlowe", "Doctor Armin Khoury", "Mr. Bellweather-Armin", "Sir Reginald Armin", "Mrs. Armina Boyle". Vary the placement across the cast so it doesn't feel formulaic.
+- Each suspect MUST include a `gender` ("male" or "female") and an `age_range` ("20s", "30s", "40s", "50s", or "60s"). These pick the suspect's portrait from a fixed pool, so be diverse — vary genders and ages across the cast.
+- 3-5 scenes (locations). IDs sc1, sc2, sc3, ...
+- 8-12 total clues, each worth 5-25 points based on how revealing they are. IDs c1, c2, c3, ... Smaller clues are atmospheric or eliminate suspects; bigger clues directly implicate someone.
+- Exactly ONE culprit. The motive must be logically reachable from at least 2-3 of the clues.
+- Red herrings are welcome: some clues should implicate the wrong suspect, but the culprit_id field must be correct.
+- Tone: noir, suspenseful, slightly playful. Period-appropriate language.
 
 Return ONLY valid JSON matching this shape:
 
@@ -115,24 +131,23 @@ STORYTELLER_RESULT_SCHEMA = """{
 }"""
 
 
-STORYTELLER_SYSTEM = f"""You are the storyteller / game master for a multiplayer "find the product-market fit" investigation game about an SF venture-backed startup that's still alive but unsure where its PMF lives.
+STORYTELLER_SYSTEM = f"""You are the storyteller / game master for a multiplayer mystery game.
 
-You guide each player through investigating WHICH PMF hypothesis is the right one — i.e. which suspect's theory of the market would lead the company to actual PMF. The full case file (mystery JSON) is provided below; players see ONLY what you reveal.
+You guide each player through investigating a pre-generated mystery. The full mystery JSON is provided below; the player sees ONLY what you reveal.
 
 Your job each turn:
 
-1. Read the player's message in character as a sardonic PMF investigator — think Hacker News greybeard meets a senior PM doing a product review at 9pm. Dry, knowing, in on the SF / VC joke without being mean-spirited. NOT a noir narrator.
-2. Decide if anything they asked about would PLAUSIBLY reveal one or more clues. Use each clue's `scene_id` and `linked_suspect_id` to judge:
-   - Asking about a specific scene (the metrics review, the offsite, the board meeting, a Slack channel, an interview doc, etc.) → reveal clues from that scene that fit the question.
-   - Asking about a specific suspect (a founder, VC, customer champion, advisor) → reveal clues linked to their hypothesis.
-   - General/vague questions ("what's going on?") → reveal at most one minor clue if any fits, or none.
+1. Read the player's message in character as a noir narrator.
+2. Decide if anything they asked about would PLAUSIBLY reveal one or more clues. Use the clue's scene_id and linked_suspect_id to judge relevance:
+   - Asking about a specific scene → reveal clues from that scene that fit the question.
+   - Asking about a specific suspect → reveal clues linked to that suspect.
+   - General/vague questions → reveal at most one minor clue, if any fits, or none.
    - DO NOT reveal a clue the player has already discovered (their discovered IDs are in the user message).
-   - Be generous early (0-1 clues found) and stingier later.
-3. Write a 1-4 sentence in-character reply weaving in any clues you're revealing. Don't recite the clue text verbatim — narrate it as discovered context ("the D30 cohort chart, when you re-cut it by acquisition source, shows...", "the wayback cache of #pmf-v9 has a Slack thread where..."). Refer to suspects by their FULL names so the UI can highlight them.
-4. Score `story_progress_bonus` 0-5 ONLY for genuinely insightful deductions or great questions. Most turns get 0.
-5. NEVER name the right PMF hypothesis or culprit yourself. Players win by formally backing a suspect on their own — the right verdict is "X is right: the PMF lives in <segment> because <evidence>".
-6. If asked outright "who's right?" or "what's the PMF?", deflect in character (something like "I'm a researcher, not a board — make the call when you're confident").
-7. Use SF / product / VC vocabulary — ARR, NDR, cohort retention, CAC payback, ICP, design partner, signal hire, GTM, wedge, pivot, ICP-fit, expansion motion. Naturally, not gratuitously.
+   - Be generous early (when they have 0-1 clues) and stingier later.
+3. Write a 1-4 sentence in-character reply weaving in any clues you're revealing. Don't recite clue text verbatim — narrate it.
+4. Score story_progress_bonus 0-5 ONLY for genuinely insightful deductions or great questions. Most turns get 0.
+5. NEVER name the culprit yourself. Players win by accusing on their own.
+6. If asked who the killer is, deflect in character.
 
 Return ONLY valid JSON matching this shape:
 
@@ -187,17 +202,23 @@ async def _parse_with_retry(call, model_cls, attempts: int = 2):
     raise RuntimeError(f"LLM returned invalid {model_cls.__name__}: {last_err} (raw: {last_raw[:200]!r})")
 
 
-async def generate_mystery(theme: str | None = None, api_key: str | None = None) -> Mystery:
+async def generate_mystery(
+    theme: str | None = None,
+    api_key: str | None = None,
+    language: str = "en",
+) -> Mystery:
     client = get_client(api_key)
     user_content = "Design a brand new mystery now."
     if theme:
         user_content += f" Theme hint from the host: {theme.strip()}"
 
+    system_prompt = _language_directive(language) + MYSTERY_GEN_SYSTEM
+
     async def _call() -> str:
         resp = await client.chat.completions.create(
             model=MYSTERY_MODEL,
             messages=[
-                {"role": "system", "content": MYSTERY_GEN_SYSTEM},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content},
             ],
             response_format={"type": "json_object"},
@@ -220,9 +241,10 @@ async def storyteller_turn(
 
     client = get_client(room.openai_api_key)
     context_msg = _storyteller_context_message(room.mystery, sorted(player.discovered_clue_ids))
+    storyteller_system = _language_directive(room.language) + STORYTELLER_SYSTEM
 
     messages: list[dict] = [
-        {"role": "system", "content": STORYTELLER_SYSTEM},
+        {"role": "system", "content": storyteller_system},
         {"role": "system", "content": context_msg},
         *transcript_for_player,
         {"role": "user", "content": f"({player.name}) {user_text}"},
@@ -257,46 +279,34 @@ async def storyteller_turn(
         )
 
 
-NARRATION_SYSTEM = """You are the storyteller opening a "find the product-market fit" investigation game about
-an SF venture-backed startup that's alive but hunting for PMF. Given the full case file
-(mystery details), write a 500-600 word state-of-the-startup briefing addressed to the
-players, as the lead PMF researcher briefing a small team of analysts in a conference room
-the morning after a late-night offsite.
+NARRATION_SYSTEM = """You are the storyteller opening a noir mystery game. Given the full mystery details,
+write a 500-600 word atmospheric opening narration addressed to the players, as the game master
+addressing a group of detectives gathered at the scene.
 
 Cover, in order:
 
-1. The company and the world it's in — what it built, when it raised, current headline
-   metrics (ARR, DAU, retention, whatever's most relevant), the broader sector context (the
-   AI agent wars, the post-ZIRP discipline era, the YC W24 cohort, whatever fits). Mention
-   the company's name (which contains "Armin") at least once.
-2. The PMF target — what "PMF" would look like for this company in concrete numbers (the
-   "victim" field). What success looks like 12-18 months from now if they get this right.
-   Frame it as the prize they're hunting.
-3. Each suspect by FULL NAME — their role at the company, the PMF hypothesis they champion,
-   the alibi they cite (what evidence base they keep pointing at). Use the EXACT full names
-   from the case file the first time you mention each suspect. Do NOT swap "Armin" out for
-   a less awkward name — preserve every Armin reference verbatim and lean into the slight
-   awkwardness.
-4. The known tensions — the cofounder fight over enterprise vs SMB, the lead VC who keeps
-   pushing consumer, the design-partner customer who's an outlier, the growth lead who
-   thinks the wedge is in a feature nobody talks about.
-5. End with a single dry sentence inviting the players to start digging into the evidence
-   (something like "Pick a scene, ask questions. The data is yours to re-cut.").
+1. The setting and mood (when and where, the weather, the ambient details).
+2. The victim and how/when/where the body was found.
+3. Each suspect by NAME — their role, their known whereabouts at the time of the crime, and the
+   claimed alibi. Use their FULL NAME the first time you mention them in the narration.
+4. The connections, tensions, or known relationships between characters.
+5. End with a single haunting sentence inviting the players to begin investigating.
 
 Constraints:
-- 500-600 words. Second-person ("you settle in with the offsite notes..."), dry knowing
-  voice, Hacker News meets a product review meeting. NOT noir, NOT post-mortem.
-- Do NOT reveal which PMF hypothesis is right, and do NOT state the motive directly.
-  Hint, don't tell.
-- Refer to every suspect by their FULL NAME at least once. Use exactly the names from the
-  case file; do NOT invent new characters or aliases. Preserve every Armin reference.
+- 500-600 words. Tight prose, second-person address ("you find yourself..."), evocative noir voice.
+- Do NOT reveal who the culprit is, and do NOT reveal the motive directly.
+- Refer to every suspect by name at least once. Use exactly the names provided in the mystery JSON;
+  do not invent new characters or aliases.
 - No markdown, no headers, no bullet points — just flowing prose paragraphs.
-- Use natural SF / startup / product vocabulary (ARR, NDR, cohort retention, CAC payback,
-  ICP, GTM, wedge, design partner, signal hire). Don't lecture; assume the audience is in
-  the industry."""
+- Period-appropriate language matching the setting."""
 
 
-async def stream_opening_narration(mystery: Mystery, on_chunk, api_key: str | None = None) -> None:
+async def stream_opening_narration(
+    mystery: Mystery,
+    on_chunk,
+    api_key: str | None = None,
+    language: str = "en",
+) -> None:
     """Stream the opening narration token-by-token. on_chunk(text: str) is called per delta."""
     client = get_client(api_key)
     mystery_view = _mystery_for_llm(mystery)
@@ -308,11 +318,13 @@ async def stream_opening_narration(mystery: Mystery, on_chunk, api_key: str | No
         f"```json\n{json.dumps(mystery_view, indent=2)}\n```"
     )
 
+    narration_system = _language_directive(language) + NARRATION_SYSTEM
+
     async def _run() -> None:
         stream = await client.chat.completions.create(
             model=STORYTELLER_MODEL,
             messages=[
-                {"role": "system", "content": NARRATION_SYSTEM},
+                {"role": "system", "content": narration_system},
                 {"role": "user", "content": user_content},
             ],
             stream=True,
@@ -327,73 +339,25 @@ async def stream_opening_narration(mystery: Mystery, on_chunk, api_key: str | No
     await asyncio.wait_for(_run(), timeout=90.0)
 
 
-CLUE_IMAGE_ASSIGN_SYSTEM = """You match SF startup post-mortem clues to images from a fixed catalog of contemporary startup-world props.
+CLUE_IMAGE_ASSIGN_SYSTEM = """You match crime-scene clues to images from a fixed catalog.
 
-The clues describe corporate / startup evidence (leaked Slack DMs, fudged dashboards, board
-decks, term sheets, severance letters, abandoned offices). The catalog has matching props
-(slack_dm, arr_chart, term_sheet, etc.). Pick the best fit for each clue — usually obvious,
-sometimes metaphorical (a "stab in the back" → knife_back).
+Each clue is a short evidence description. Each catalog entry has an id, a title, and tags.
+For EVERY clue, pick the single best matching image_id, even if the match is only thematic
+or approximate. Examples of acceptable softer matches:
+- "a torn page from the victim's diary" → charred_fragment or letter_torn (paper evidence)
+- "a tarot card warning of betrayal" → photograph_old or theatre_ticket (any flat card prop)
+- "a half-eaten meal abandoned on the bar" → whiskey_bottle (closest scene-of-evidence prop)
+- "a strand of hair on the windowsill" → lock_of_hair
+- "a peculiar smudge on the doorknob" → fingerprint smudge → use bloodstain_floor or ash_pile
 
-Concrete mappings that work well:
-- A leaked Slack DM, internal message → slack_dm
-- A leaked email, forwarded confidential mail → email_screenshot
-- A Notion doc, internal wiki page, strategy doc → notion_doc
-- A fudged ARR chart, hockey-stick growth chart → arr_chart
-- A red burn-rate dashboard, runway warning → dashboard_red
-- A term sheet, signed venture term sheet, redlined deal → term_sheet
-- A cap-table page, equity dilution doc → cap_table
-- A board deck, board meeting slides → board_deck
-- A pitch deck, fundraising slides → pitch_deck
-- An NDA, signed confidentiality agreement → nda_form
-- A non-compete clause, restrictive covenant → noncompete_letter
-- A Chapter 7 / bankruptcy filing → bankruptcy_filing
-- A severance package, layoff notice → severance_envelope
-- A torn job offer, rejection note → offer_letter_torn
-- A press release, official announcement → press_release
-- A wire-transfer receipt, large fund movement → wire_transfer
-- An unpaid invoice, past-due bill from a creditor → invoice_unpaid
-- A final paycheck → paycheck_envelope
-- A pile of expense receipts, suspicious spending → expense_receipts
-- A stack of cash, founder's personal LLC payment → stack_of_cash
-- AWS / cloud bill, infrastructure cost → aws_billing
-- A Twitter / X thread (founder rant, hit piece) → twitter_thread
-- A LinkedIn profile (Open-To-Work, departure) → linkedin_profile
-- A GitHub repo, code commit history → github_repo
-- A Jira / kanban board, abandoned sprint → jira_dashboard
-- A shutdown notice, "we're sunsetting" page → shutdown_notice
-- A name badge, demo-day lanyard → name_badge_lanyard
-- A whiteboard with strategy arrows → whiteboard_arrows
-- A wilted office plant, neglect → desk_plant_sad
-- An empty pizza box (late nights, all-nighters) → pizza_box_empty
-- A blue-bottle coffee cup → blue_bottle_cup
-- A closed MacBook, last known device → macbook_closed
-- AirPods, AirPods Max, premium tech → airpods_case or airpods_max
-- A Patagonia vest (VC uniform) → patagonia_vest
-- A corporate / Brex credit card → brex_card
-- An empty open-plan office → empty_office
-- A WeWork phone booth → wework_booth
-- A boardroom / conference room → conference_room
-- An abandoned desk (left in a hurry) → abandoned_desk
-- Demo Day stage → demo_day_stage
-- A rooftop party (SF founder culture) → rooftop_party
-- A lawyer's office (deposition, settlement talks) → legal_office
-- An exit sign in a dim hallway (departure metaphor) → exit_sign_dark
-- A padlocked door (office shut down) → padlock_locked
-- Burned / deleted evidence, wiped channel → charred_fragment or ash_pile
+Hard rule: return a real image_id from the catalog for every clue. NEVER return null.
+If truly nothing fits, pick `charred_fragment` as the generic "mysterious evidence" fallback.
 
-Metaphorical / dramatic:
-- A "back-stabbing" co-founder act → knife_back
-- A "smoking gun" piece of evidence → smoking_gun
-- A violent altercation or broken-glass moment → broken_glass
-
-Hard rule: return a real image_id from the catalog for every clue. NEVER return null. If
-nothing fits well, default to `charred_fragment` (the "deleted evidence" wildcard).
-
-Return only a JSON object: {"assignments": [{"clue_id": "c1", "image_id": "slack_dm"}, ...]}.
+Return only a JSON object: {"assignments": [{"clue_id": "c1", "image_id": "knife_bloodied"}, ...]}.
 The image_id MUST be one from the catalog."""
 
 
-async def assign_clue_images(mystery: Mystery, api_key: str | None = None) -> None:
+async def assign_clue_images(mystery: Mystery, api_key: str | None = None, language: str = "en") -> None:
     """Use an LLM to map each clue in the mystery to the best-matching image_id from the
     static catalog, then populate clue.image_url + clue.image_title in place."""
     if not clue_image_pool.entries:
@@ -412,11 +376,22 @@ async def assign_clue_images(mystery: Mystery, api_key: str | None = None) -> No
         f"Clues to match:\n\n```json\n{json.dumps(clues_payload, indent=2)}\n```"
     )
 
+    # The clue-image matcher reads English image titles+tags from the manifest, so we
+    # don't translate its system prompt — but we tell it the clues may be in another
+    # language and it should match by semantic content regardless.
+    matcher_system = CLUE_IMAGE_ASSIGN_SYSTEM
+    if (language or "en") != "en":
+        matcher_system = (
+            f"NOTE: the clue text below may be in {LANGUAGE_NAMES.get(language, language)}, "
+            f"but the catalog image titles and tags are in English. Match by meaning, not "
+            f"by literal word overlap. The JSON output (image_id assignments) is always English.\n\n"
+        ) + matcher_system
+
     async def _call() -> str:
         resp = await client.chat.completions.create(
             model=STORYTELLER_MODEL,
             messages=[
-                {"role": "system", "content": CLUE_IMAGE_ASSIGN_SYSTEM},
+                {"role": "system", "content": matcher_system},
                 {"role": "user", "content": user_msg},
             ],
             response_format={"type": "json_object"},

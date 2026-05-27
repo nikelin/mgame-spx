@@ -1,8 +1,8 @@
-"""Generate the SF startup post-mortem prop image pool used at mystery time.
+"""Generate the pool of clue / prop images used at mystery time. Run once.
 
 Output: server/clue_images/<id>.jpg + server/clue_images/manifest.json.
 
-    OPENAI_API_KEY=... uv run --with openai python scripts/generate_clue_images.py --force
+    OPENAI_API_KEY=... uv run --with openai python scripts/generate_clue_images.py
 """
 from __future__ import annotations
 
@@ -21,11 +21,10 @@ OUT_DIR = REPO_ROOT / "server" / "clue_images"
 MANIFEST = OUT_DIR / "manifest.json"
 
 BASE_STYLE = (
-    "Style: contemporary editorial still-life photograph, single subject centered against "
-    "a clean muted background (matte black, brushed concrete, light wood, or office "
-    "fabric), shallow depth of field, soft directional light. The subject fills most of "
-    "the frame. Do not include any readable text, logos, signatures, brand marks, or "
-    "watermarks in the image. Realistic 2020s San Francisco tech-startup aesthetic."
+    "Style: moody noir still life, single object centered against a neutral dark background, "
+    "dramatic chiaroscuro lighting from one side, painterly illustration, period-accurate "
+    "1920s-1940s details. The object fills most of the frame. Do not include any text, "
+    "letters, signatures, or watermarks anywhere in the image."
 )
 
 
@@ -39,124 +38,121 @@ def make(id_: str, title: str, prompt_subject: str, tags: list[str]) -> dict:
     }
 
 
-# 50 startup post-mortem prop images. Categories: legal docs, dashboards & screens,
-# physical office objects, money/financials, "death" markers (shutdown notices, layoff
-# letters), plus a handful of metaphorical objects (knife, ash) that the LLM can lean
-# on for dramatic clues ("a stab in the back from his co-founder").
+# 50 prop images covering common mystery-game evidence categories.
 SPECS: list[dict] = [
-    # ===== Legal / corporate documents (10) =====
-    make("term_sheet", "Term Sheet", "A printed venture-capital term sheet with red ink redlines and a coffee ring in the corner, lying on a black desk",
-         ["document", "term sheet", "legal", "vc", "fundraising"]),
-    make("cap_table", "Cap Table", "A printed cap table page showing dilution columns and percentages (numbers and headers blurred), on a wooden desk",
-         ["document", "cap table", "equity", "ownership", "dilution"]),
-    make("board_deck", "Board Deck", "A laptop open at an angle showing a board meeting slide deck with vague chart shapes, neutral office background",
-         ["document", "board", "deck", "slides", "presentation"]),
-    make("pitch_deck", "Pitch Deck", "A printed pitch deck cover page lying on a glass conference table, no readable text",
-         ["document", "pitch", "deck", "fundraising", "slides"]),
-    make("severance_envelope", "Severance Envelope", "A manila envelope on a desk, partially open, papers inside suggesting a legal document",
-         ["document", "severance", "envelope", "layoff", "legal"]),
-    make("nda_form", "Signed NDA", "A printed non-disclosure agreement with a fountain pen resting on top, signature line visible but illegible",
-         ["document", "nda", "legal", "confidential", "signed"]),
-    make("noncompete_letter", "Non-Compete Letter", "A formal-looking letter on letterhead with red highlighter marks, on a desk",
-         ["document", "noncompete", "legal", "letter"]),
-    make("bankruptcy_filing", "Chapter 7 Filing", "A thick stack of court-filing documents bound with a binder clip, ominous shadow",
-         ["document", "bankruptcy", "chapter 7", "legal", "filing", "death"]),
-    make("press_release", "Press Release", "A printed press release page on cream paper, professional formatting, on a wood desk",
-         ["document", "press release", "announcement", "pr"]),
-    make("offer_letter_torn", "Torn Offer Letter", "A formal job-offer letter ripped roughly in half, on a slate desk",
-         ["document", "offer letter", "torn", "rejection", "departure"]),
+    # ===== Weapons (10) =====
+    make("knife_kitchen", "Kitchen Knife", "An ordinary kitchen knife with a wooden handle and a long steel blade, lying on a dark wood surface",
+         ["weapon", "knife", "blade", "sharp", "kitchen"]),
+    make("knife_bloodied", "Bloodied Dagger", "A small antique dagger with dried blood on the blade, resting on a stone surface",
+         ["weapon", "knife", "dagger", "blood", "blade"]),
+    make("revolver", "Silver Revolver", "A polished silver revolver from the 1930s with a pearl grip, on dark velvet",
+         ["weapon", "gun", "pistol", "revolver", "firearm"]),
+    make("derringer", "Pocket Derringer", "A small two-shot derringer pistol, ladies' style, ornate engraving",
+         ["weapon", "gun", "pistol", "derringer", "concealed"]),
+    make("candlestick_heavy", "Heavy Candlestick", "A heavy ornate brass candlestick, slightly bent, with wax drippings",
+         ["weapon", "blunt", "candlestick", "brass", "heavy"]),
+    make("rope_coiled", "Coiled Rope", "A coiled length of thick rope with frayed ends, on rough wooden boards",
+         ["weapon", "rope", "strangle", "garotte"]),
+    make("poison_vial", "Poison Vial", "A small dark glass apothecary bottle with a skull-and-crossbones glass stopper, half full of murky liquid",
+         ["weapon", "poison", "vial", "bottle", "chemical"]),
+    make("syringe", "Hypodermic Syringe", "A vintage glass-and-metal hypodermic syringe with a long needle, on a metal tray",
+         ["weapon", "syringe", "needle", "injection", "medical"]),
+    make("ice_pick", "Ice Pick", "A slim metal ice pick with a wooden handle, point gleaming under a single light",
+         ["weapon", "ice pick", "puncture", "sharp"]),
+    make("crowbar_iron", "Iron Crowbar", "A short iron crowbar with one end darkened by something",
+         ["weapon", "blunt", "crowbar", "iron", "tool"]),
 
-    # ===== Dashboards & screens (10) =====
-    make("slack_dm", "Slack DM Screenshot", "A laptop screen showing a Slack-like chat interface with messages, sidebar visible, text blurred, dark theme",
-         ["screen", "slack", "messaging", "dm", "leaked"]),
-    make("email_screenshot", "Email Window", "A laptop screen showing a generic email client with an inbox and an open message, text blurred",
-         ["screen", "email", "inbox", "leaked"]),
-    make("notion_doc", "Notion Doc", "A laptop screen showing a clean document interface with sidebar of pages, heading visible, text blurred",
-         ["screen", "notion", "document", "wiki"]),
-    make("jira_dashboard", "Sprint Board", "A laptop screen showing a kanban board with colored cards in columns, dark theme",
-         ["screen", "jira", "kanban", "sprint", "project management"]),
-    make("github_repo", "Code Editor", "A laptop screen showing a code editor with syntax-highlighted code, dark theme, sidebar of files",
-         ["screen", "code", "github", "engineering"]),
-    make("aws_billing", "Cloud Billing Dashboard", "A laptop screen showing a billing dashboard with bar charts of monthly costs, large dollar figure illegible, dark theme",
-         ["screen", "aws", "cloud", "billing", "burn rate"]),
-    make("twitter_thread", "Twitter Thread", "A smartphone in hand showing a social-media-style thread with multiple connected posts, text blurred",
-         ["screen", "twitter", "x", "thread", "social"]),
-    make("linkedin_profile", "LinkedIn Profile", "A smartphone screen showing a generic professional networking profile page, header photo and avatar visible, text blurred",
-         ["screen", "linkedin", "profile", "departure"]),
-    make("arr_chart", "Hockey-Stick ARR Chart", "A laptop screen showing a green line chart with an obvious hockey-stick growth curve, dark theme",
-         ["screen", "chart", "arr", "metrics", "growth"]),
-    make("shutdown_notice", "Shutdown Notice", "A laptop screen showing a stark website page with a sad-face icon, indicating a service is shutting down",
-         ["screen", "shutdown", "death", "closure", "website"]),
+    # ===== Documents (8) =====
+    make("letter_torn", "Torn Letter", "A handwritten letter torn into pieces and reassembled on a desk, pen and inkwell beside",
+         ["document", "letter", "paper", "torn", "writing"]),
+    make("letter_love", "Love Letter", "A scented pink envelope with elegant handwriting, lipstick-stained corner",
+         ["document", "letter", "love", "romance", "envelope", "pink"]),
+    make("telegram", "Yellow Telegram", "A folded yellow Western Union telegram on a wooden desk",
+         ["document", "telegram", "telegraph", "message", "urgent"]),
+    make("photograph_old", "Old Photograph", "A black-and-white sepia photograph with a torn corner, half hidden under other papers",
+         ["document", "photograph", "photo", "picture", "memory"]),
+    make("ledger_book", "Accounts Ledger", "A leather-bound accounts ledger open to a page of figures, pen across it",
+         ["document", "ledger", "book", "accounts", "money"]),
+    make("will_document", "Legal Will", "A folded legal document with a red wax seal, on a desk",
+         ["document", "will", "legal", "wax seal", "inheritance"]),
+    make("train_ticket", "Train Ticket", "A printed train ticket from the 1930s, slightly crumpled",
+         ["document", "ticket", "train", "travel", "stub"]),
+    make("theatre_ticket", "Theatre Ticket", "An ornate theatre ticket stub for an evening show, on red velvet",
+         ["document", "ticket", "theatre", "show", "stub"]),
 
-    # ===== Physical office objects (10) =====
-    make("macbook_closed", "Closed MacBook", "A closed silver laptop on a wood desk with a coffee cup beside it, dim office light",
-         ["object", "laptop", "macbook", "desk"]),
-    make("patagonia_vest", "Patagonia Vest", "A charcoal-gray puffer fleece vest folded neatly on the back of a designer office chair, blurred conference room behind",
-         ["object", "vest", "patagonia", "vc", "uniform"]),
-    make("airpods_case", "AirPods Case", "A small white wireless-earbud charging case sitting open on a marble desk, one earbud inside",
-         ["object", "airpods", "earbuds", "tech"]),
-    make("blue_bottle_cup", "Coffee Cup", "A simple white ceramic to-go coffee cup with a sleeve, sitting on a wooden cafe table",
-         ["object", "coffee", "cafe", "morning meeting"]),
-    make("pizza_box_empty", "Empty Pizza Box", "An open empty cardboard pizza box with only crumbs left, on a cluttered office desk at night",
-         ["object", "pizza", "office", "all-nighter", "burn"]),
-    make("name_badge_lanyard", "Conference Lanyard", "A blank-white plastic name badge dangling from a black lanyard on a glass desk, no readable text",
-         ["object", "badge", "conference", "demo day"]),
-    make("whiteboard_arrows", "Whiteboard with Arrows", "A glass whiteboard covered in scrawled arrows and boxes in dry-erase marker, blurred to be illegible",
-         ["object", "whiteboard", "strategy", "diagram"]),
-    make("desk_plant_sad", "Wilted Desk Plant", "A small wilted office desk plant in a white ceramic pot, leaves drooping, sad neglected look",
-         ["object", "plant", "office", "neglect", "decay"]),
-    make("brex_card", "Corporate Card", "A sleek matte-black metal credit card lying alone on a marble surface, no readable text or numbers",
-         ["object", "credit card", "brex", "corporate", "money"]),
-    make("airpods_max", "Premium Headphones", "Over-ear silver-gray wireless headphones resting on a desk, premium tech vibe",
-         ["object", "headphones", "premium", "engineer"]),
+    # ===== Clothing / accessories (10) =====
+    make("glove_bloodied", "Bloodied Glove", "A single white silk evening glove with dark blood stains, on hardwood",
+         ["clothing", "glove", "silk", "blood", "evening"]),
+    make("glove_leather", "Leather Glove", "A man's brown leather driving glove, slightly worn, on a car seat",
+         ["clothing", "glove", "leather", "driving", "man"]),
+    make("scarf_silk", "Silk Scarf", "A long emerald-green silk scarf, partially crumpled, on a marble surface",
+         ["clothing", "scarf", "silk", "green", "ladies"]),
+    make("hat_fedora", "Felt Fedora", "A man's grey felt fedora hat on a coat rack, light shadows",
+         ["clothing", "hat", "fedora", "felt", "man"]),
+    make("ring_signet", "Gold Signet Ring", "An ornate gold signet ring with engraved crest, on velvet",
+         ["clothing", "ring", "jewelry", "signet", "gold"]),
+    make("brooch_diamond", "Diamond Brooch", "A sparkling diamond brooch in art deco style, on dark silk",
+         ["clothing", "brooch", "jewelry", "diamond", "art deco"]),
+    make("earring_pearl", "Pearl Earring", "A single pearl drop earring, the other missing, on a vanity",
+         ["clothing", "earring", "jewelry", "pearl", "lost"]),
+    make("cufflinks_gold", "Gold Cufflinks", "A pair of monogrammed gold cufflinks on a silk shirt cuff",
+         ["clothing", "cufflinks", "jewelry", "gold", "monogram"]),
+    make("handkerchief_monogrammed", "Monogrammed Handkerchief", "A white linen handkerchief with embroidered monogram, slightly crumpled",
+         ["clothing", "handkerchief", "linen", "monogram"]),
+    make("fur_stole", "Fur Stole", "A luxurious fox fur stole draped on the back of a chair",
+         ["clothing", "fur", "stole", "ladies", "luxury"]),
 
-    # ===== Money / financials (6) =====
-    make("wire_transfer", "Wire Transfer Receipt", "A printed bank wire-transfer confirmation page with rows of figures (numbers blurred), on a wood desk",
-         ["money", "wire transfer", "bank", "fundraising", "money out"]),
-    make("invoice_unpaid", "Past-Due Invoice", "A printed invoice with a red 'PAST DUE' stamp across it, on a marble desk",
-         ["money", "invoice", "unpaid", "creditor"]),
-    make("paycheck_envelope", "Final Paycheck", "A plain business envelope with a clear-window check showing through, on a desk",
-         ["money", "paycheck", "envelope", "layoff", "departure"]),
-    make("stack_of_cash", "Stack of Cash", "A small neat stack of US one-hundred-dollar bills on a dark desk, dramatic lighting",
-         ["money", "cash", "fundraise", "exit"]),
-    make("expense_receipts", "Pile of Receipts", "A small pile of crumpled paper expense receipts on a desk, looking suspicious",
-         ["money", "receipts", "expense", "fraud"]),
-    make("dashboard_red", "Red Burn-Rate Dashboard", "A laptop screen showing a financial dashboard dominated by red downward arrows and negative numbers (numbers blurred)",
-         ["money", "burn rate", "runway", "metrics", "death"]),
+    # ===== Personal items (6) =====
+    make("lipstick_gold", "Gold Lipstick", "A gold lipstick tube uncapped, vivid red bullet visible, on a vanity",
+         ["personal", "lipstick", "makeup", "red", "ladies"]),
+    make("perfume_bottle", "Perfume Bottle", "An ornate cut-glass perfume bottle with an atomizer bulb",
+         ["personal", "perfume", "bottle", "ladies", "fragrance"]),
+    make("lock_of_hair", "Lock of Hair", "A delicate lock of auburn hair tied with a black ribbon, on velvet",
+         ["personal", "hair", "lock", "ribbon", "keepsake"]),
+    make("locket_silver", "Silver Locket", "A silver locket open to reveal a tiny portrait, on a chain",
+         ["personal", "locket", "jewelry", "silver", "portrait"]),
+    make("pocket_watch", "Gold Pocket Watch", "A gold pocket watch on a chain, lid open showing roman numerals, slightly damaged",
+         ["personal", "watch", "pocket watch", "gold", "timepiece"]),
+    make("key_brass", "Brass Key", "An ornate antique brass key with intricate bow, on dark wood",
+         ["personal", "key", "brass", "antique", "lock"]),
 
-    # ===== Scene / location (8) =====
-    make("empty_office", "Abandoned Open-Plan Office", "An empty modern open-plan startup office at dusk, rows of empty desks, a few chairs askew, no people",
-         ["scene", "office", "empty", "abandoned", "shutdown"]),
-    make("wework_booth", "Phone Booth", "A small glass phone-booth-style room inside a coworking space, single chair and desk, dim light",
-         ["scene", "wework", "coworking", "phone booth", "meeting"]),
-    make("conference_room", "Empty Conference Room", "An empty glass-walled conference room with a long table, the door slightly ajar, plant in the corner",
-         ["scene", "conference room", "meeting", "boardroom"]),
-    make("abandoned_desk", "Abandoned Desk", "A single office desk strewn with personal items left in a hurry — a half-finished coffee, a sweater, a key card",
-         ["scene", "desk", "departure", "abandoned"]),
-    make("demo_day_stage", "Stage at Demo Day", "A spotlit stage with a single microphone, screen behind glowing, no presenter, empty seats",
-         ["scene", "demo day", "stage", "pitch"]),
-    make("rooftop_party", "Rooftop Party", "A rooftop terrace at golden hour with abandoned wine glasses and string lights, distant city skyline",
-         ["scene", "party", "rooftop", "social"]),
-    make("legal_office", "Lawyer's Office", "A wood-paneled lawyer's office with a heavy oak desk, leather chair, stacked files, no people",
-         ["scene", "lawyer", "office", "legal"]),
-    make("exit_sign_dark", "Exit Sign in Dim Hallway", "A glowing red EXIT sign at the end of a dimly lit office hallway",
-         ["scene", "exit", "hallway", "departure", "death"]),
+    # ===== Scene evidence (8) =====
+    make("broken_glass", "Broken Glass", "Shards of a broken crystal tumbler on a hardwood floor, amber liquid pooled",
+         ["scene", "glass", "broken", "tumbler", "drink"]),
+    make("footprint_muddy", "Muddy Footprint", "A single muddy boot footprint on a polished wooden floor",
+         ["scene", "footprint", "mud", "boot", "trace"]),
+    make("bloodstain_floor", "Bloodstain", "A dark bloodstain on a patterned oriental rug, partially covered",
+         ["scene", "blood", "stain", "rug", "trace"]),
+    make("cigar_butt", "Cigar Stub", "A half-smoked cigar resting in a crystal ashtray, ash trail",
+         ["scene", "cigar", "smoke", "ashtray", "tobacco"]),
+    make("cigarette_lipstick", "Lipstick-stained Cigarette", "A cigarette butt with red lipstick smudge in a tin ashtray",
+         ["scene", "cigarette", "smoke", "lipstick", "ashtray"]),
+    make("matchbook", "Matchbook", "A matchbook from a speakeasy, half the matches gone, on a dark bar",
+         ["scene", "matchbook", "matches", "speakeasy", "bar"]),
+    make("ash_pile", "Pile of Ash", "A small pile of grey ash on a desk near burned paper fragments",
+         ["scene", "ash", "burned", "fire", "paper"]),
+    make("mud_caked_shoe", "Mud-caked Shoe", "A single black leather oxford shoe caked with dried mud",
+         ["scene", "shoe", "mud", "footprint", "leather"]),
 
-    # ===== Death/failure markers (3) =====
-    make("ash_pile", "Burned Document Pile", "A small pile of grey ash on a slate surface, with charred edges of paper fragments still visible",
-         ["death", "ash", "burned", "evidence", "deleted"]),
-    make("charred_fragment", "Charred Page Fragment", "A scorched piece of paper with burned edges, partial illegible handwriting barely visible, on a dark surface",
-         ["death", "charred", "burned", "evidence", "fragment"]),
-    make("padlock_locked", "Padlocked Door", "A heavy industrial padlock on a corrugated metal pulldown door, harsh light",
-         ["death", "padlock", "shutdown", "locked"]),
+    # ===== Containers / locks (4) =====
+    make("safe_open", "Open Safe", "A small wall safe with the door swung open, empty inside, dial visible",
+         ["container", "safe", "lock", "empty", "vault"]),
+    make("suitcase_battered", "Battered Suitcase", "A battered leather suitcase with brass clasps, travel stickers, on a station bench",
+         ["container", "suitcase", "luggage", "travel", "leather"]),
+    make("jewelry_box", "Jewelry Box", "An open velvet-lined jewelry box, contents disturbed, one compartment empty",
+         ["container", "jewelry box", "velvet", "empty", "robbery"]),
+    make("envelope_sealed", "Sealed Envelope", "A cream envelope sealed with red wax, on a desk",
+         ["container", "envelope", "wax seal", "letter"]),
 
-    # ===== Dramatic metaphor (3) =====
-    make("knife_back", "Knife in Wood", "A simple kitchen knife stuck blade-first into a wooden cutting board, dramatic shadow",
-         ["metaphor", "knife", "betrayal", "back-stab"]),
-    make("smoking_gun", "Smoking Gun", "A small ornate revolver lying alone on a dark surface with a thin wisp of smoke still rising",
-         ["metaphor", "gun", "smoking gun", "evidence", "killer"]),
-    make("broken_glass", "Broken Glass on Floor", "Shards of a broken drinking glass on a hardwood office floor, with spilled liquid",
-         ["scene", "broken", "glass", "incident", "violence"]),
+    # ===== Other (4) =====
+    make("coin_silver", "Silver Coin", "A single tarnished silver coin from the 1920s, on dark felt",
+         ["other", "coin", "silver", "money", "currency"]),
+    make("whiskey_bottle", "Whiskey Bottle", "A half-empty bottle of bourbon on a polished bar, two glasses beside",
+         ["other", "whiskey", "bourbon", "bottle", "drink", "alcohol"]),
+    make("broken_necklace", "Broken Pearl Necklace", "Scattered pearls from a broken necklace on a marble floor",
+         ["other", "pearls", "necklace", "broken", "jewelry", "ladies"]),
+    make("charred_fragment", "Charred Paper Fragment", "A scorched piece of paper, edges burned, partial writing barely visible",
+         ["other", "burned", "paper", "fragment", "evidence"]),
 ]
 
 
